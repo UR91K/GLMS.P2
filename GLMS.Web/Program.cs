@@ -1,5 +1,6 @@
 using GLMS.Web.Components;
 using GLMS.Web.Data;
+using GLMS.Web.Services.Currency;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,16 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContextFactory<AppDbContext>(opts =>
     opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
+{
+    var baseUrl = builder.Configuration["Currency:ApiBaseUrl"] ?? "https://open.er-api.com";
+    client.BaseAddress = new Uri(baseUrl);
+});
+
+builder.Services.AddScoped<ICurrencyService, CurrencyServiceProxy>();
 
 var app = builder.Build();
 
