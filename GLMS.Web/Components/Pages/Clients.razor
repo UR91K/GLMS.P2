@@ -1,0 +1,183 @@
+@page "/clients"
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+
+<PageTitle>Clients</PageTitle>
+
+<div class="page-shell">
+    <header class="page-header">
+        <div class="page-header-copy">
+            <p class="eyebrow">Clients</p>
+            <h1 class="page-title">Client directory</h1>
+        </div>
+        <div class="button-row">
+            <a class="button button-primary" href="/clients/new">Add client</a>
+            <button class="button button-secondary" type="button" @onclick="LoadClientsAsync">Refresh list</button>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Loading clients</h2>
+            <p class="empty-state-copy">The directory is being read from the database.</p>
+        </section>
+    }
+    else
+    {
+        <section class="stats-grid">
+            <article class="surface-card stat-card">
+                <p class="stat-label">Clients</p>
+                <p class="stat-value">@clients.Count</p>
+                <p class="stat-meta">Total client records in the system.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">Contracts</p>
+                <p class="stat-value">@clients.Sum(client => client.ContractCount)</p>
+                <p class="stat-meta">All contracts currently associated with those clients.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">Contact coverage</p>
+                <p class="stat-value">@contactCoverage</p>
+                <p class="stat-meta">Clients with both an email address and phone number on record.</p>
+            </article>
+        </section>
+
+        <section class="surface-card section-card data-table-shell">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <input class="search-input"
+                        @bind="searchTerm"
+                        @bind:event="oninput"
+                        placeholder="Search by name, email, or phone"
+                        aria-label="Search clients" />
+                </div>
+                <div class="toolbar-group inline-note">
+                    <span>@filteredClients.Count result@(filteredClients.Count == 1 ? string.Empty : "s")</span>
+                    <span>&middot;</span>
+                    <span>Sorted alphabetically</span>
+                </div>
+            </div>
+
+            @if (filteredClients.Count == 0)
+            {
+                <div class="empty-state">
+                    <h2 class="empty-state-title">No matching clients</h2>
+                    <p class="empty-state-copy">Try a broader search term, or add your first client record in the next implementation pass.</p>
+                </div>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Reference</th>
+                            <th>Contact</th>
+                            <th>Contracts</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var client in filteredClients)
+                        {
+                            <tr>
+                                <td data-label="Client">
+                                    <div class="stack">
+                                        <strong>@client.Name</strong>
+                                        <span class="muted">Primary account holder</span>
+                                    </div>
+                                </td>
+                                <td data-label="Reference">
+                                    <div class="stack mono">
+                                        <strong>CLI-@client.ClientId.ToString("D4")</strong>
+                                        <span class="muted">Internal reference</span>
+                                    </div>
+                                </td>
+                                <td data-label="Contact">
+                                    <div class="stack">
+                                        <span>@client.Email</span>
+                                        <span class="muted">@client.Phone</span>
+                                    </div>
+                                </td>
+                                <td data-label="Contracts">
+                                    <span class="pill pill-neutral">@client.ContractCount contract@(client.ContractCount == 1 ? string.Empty : "s")</span>
+                                </td>
+                                <td data-label="Action">
+                                    <a class="button button-secondary button-compact" href="/clients/@client.ClientId/edit">Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private List<ClientListItem> clients = [];
+    private string searchTerm = string.Empty;
+    private bool isLoading = true;
+
+    private IReadOnlyList<ClientListItem> filteredClients => clients
+        .Where(client =>
+            string.IsNullOrWhiteSpace(searchTerm) ||
+            client.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            client.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            client.Phone.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private string contactCoverage => clients.Count == 0
+        ? "0%"
+        : $"{Math.Round(clients.Count(client => client.HasFullContactDetails) * 100m / clients.Count):0}%";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClientsAsync();
+    }
+
+    private async Task LoadClientsAsync()
+    {
+        isLoading = true;
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var clientRows = await dbContext.Clients
+            .AsNoTracking()
+            .OrderBy(client => client.Name)
+            .Select(client => new
+            {
+                client.ClientId,
+                client.Name,
+                client.Email,
+                client.Phone,
+                ContractCount = client.Contracts.Count()
+            })
+            .ToListAsync();
+
+        clients = clientRows
+            .Select(client => new ClientListItem(
+                client.ClientId,
+                client.Name,
+                client.Email,
+                client.Phone,
+                client.ContractCount))
+            .ToList();
+
+        isLoading = false;
+    }
+
+    private sealed record ClientListItem(
+        int ClientId,
+        string Name,
+        string Email,
+        string Phone,
+        int ContractCount)
+    {
+        public bool HasFullContactDetails =>
+            !string.IsNullOrWhiteSpace(Email) &&
+            !string.IsNullOrWhiteSpace(Phone);
+    }
+}

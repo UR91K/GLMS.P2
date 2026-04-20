@@ -1,30 +1,33 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">GLMS.Web</a>
+﻿<div class="nav-shell surface-card">
+    <div class="nav-brand-row">
+        <a class="nav-brand" href="/clients">
+            <span class="nav-brand-mark">TM</span>
+            <span class="nav-brand-copy">
+                <strong>TechMove</strong>
+                <span>Leasing workspace</span>
+            </span>
+        </a>
     </div>
-</div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+    <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler')?.click()">
+        <nav class="nav-links">
+            <NavLink class="nav-link" href="/clients" Match="NavLinkMatch.Prefix">
+                <span class="nav-link-text">Clients</span>
+                <span class="nav-link-meta">Directory</span>
             </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            <NavLink class="nav-link" href="/contracts" Match="NavLinkMatch.Prefix">
+                <span class="nav-link-text">Contracts</span>
+                <span class="nav-link-meta">Status and agreement files</span>
             </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="/service-requests" Match="NavLinkMatch.Prefix">
+                <span class="nav-link-text">Service Requests</span>
+                <span class="nav-link-meta">Currency conversions and workflow</span>
             </NavLink>
-        </div>
-    </nav>
+        </nav>
+    </div>
 </div>
 

@@ -1,0 +1,219 @@
+@page "/clients/new"
+@page "/clients/{ClientId:int}/edit"
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>@PageTitleText</PageTitle>
+
+<div class="page-shell">
+    <header class="page-header">
+        <div class="page-header-copy">
+            <p class="eyebrow">Clients</p>
+            <h1 class="page-title">@HeadingText</h1>
+        </div>
+        <div class="button-row">
+            <a class="button button-secondary" href="/clients">Back to list</a>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Loading client</h2>
+            <p class="empty-state-copy">Preparing the form and reading the current record from the database.</p>
+        </section>
+    }
+    else if (isMissing)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Client not found</h2>
+            <p class="empty-state-copy">The requested client record could not be found. It may have been removed or the link may be out of date.</p>
+            <a class="button button-primary" href="/clients">Return to clients</a>
+        </section>
+    }
+    else
+    {
+        <div class="form-shell">
+            <section class="surface-card form-card">
+                <EditForm FormName="client-editor" Model="formModel" OnValidSubmit="HandleValidSubmitAsync">
+                    <DataAnnotationsValidator />
+
+                    @if (showValidationSummary)
+                    {
+                        <div class="validation-block">
+                            <ValidationSummary class="validation-list" />
+                        </div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="form-section">
+                            <div class="form-field">
+                                <label for="client-name">Client name</label>
+                                <InputText id="client-name" class="field-control" @bind-Value="formModel.Name" placeholder="Enter the client's full name" />
+                                <span class="field-hint">Use the display name your contracts and service requests should show.</span>
+                                <ValidationMessage For="@(() => formModel.Name)" />
+                            </div>
+
+                            <div class="form-field">
+                                <label for="client-email">Email address</label>
+                                <InputText id="client-email" class="field-control" @bind-Value="formModel.Email" placeholder="name@company.com" />
+                                <span class="field-hint">This is the primary contact address used across the workspace.</span>
+                                <ValidationMessage For="@(() => formModel.Email)" />
+                            </div>
+
+                            <div class="form-field">
+                                <label for="client-phone">Phone number</label>
+                                <InputText id="client-phone" class="field-control" @bind-Value="formModel.Phone" placeholder="+27 11 555 1234" />
+                                <span class="field-hint">Keep the format readable. Spaces, digits, plus signs, and hyphens are accepted.</span>
+                                <ValidationMessage For="@(() => formModel.Phone)" />
+                            </div>
+                        </div>
+
+                        <div class="button-row">
+                            <button class="button button-primary" type="submit" disabled="@isSaving">@(isSaving ? "Saving..." : SaveButtonText)</button>
+                            <a class="button button-secondary" href="/clients">Cancel</a>
+                        </div>
+                    </div>
+                </EditForm>
+            </section>
+
+            <aside class="aside-stack">
+                <section class="surface-card form-card">
+                    <p class="eyebrow">Record details</p>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-label">Mode</span>
+                            <span class="info-value">@(IsEditMode ? "Edit existing client" : "Create new client")</span>
+                        </div>
+
+                        <div class="info-item">
+                            <span class="info-label">Reference</span>
+                            <span class="info-value mono">@(ClientId.HasValue ? $"CLI-{ClientId.Value:D4}" : "Assigned after save")</span>
+                        </div>
+
+                        <div class="info-item">
+                            <span class="info-label">Contracts linked</span>
+                            <span class="info-value">@contractCountText</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int? ClientId { get; set; }
+
+    private ClientFormModel formModel = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isMissing;
+    private bool showValidationSummary;
+    private int contractCount;
+
+    private bool IsEditMode => ClientId.HasValue;
+    private string HeadingText => IsEditMode ? "Edit client" : "Create client";
+    private string PageTitleText => IsEditMode ? "Edit Client" : "Create Client";
+    private string SaveButtonText => IsEditMode ? "Save changes" : "Create client";
+    private string contractCountText => IsEditMode ? $"{contractCount} contract{(contractCount == 1 ? string.Empty : "s")}" : "No contracts yet";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        isMissing = false;
+        showValidationSummary = false;
+        contractCount = 0;
+
+        if (!IsEditMode)
+        {
+            formModel = new ClientFormModel();
+            isLoading = false;
+            return;
+        }
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var client = await dbContext.Clients
+            .AsNoTracking()
+            .Where(item => item.ClientId == ClientId.Value)
+            .Select(item => new
+            {
+                item.ClientId,
+                item.Name,
+                item.Email,
+                item.Phone,
+                ContractCount = item.Contracts.Count()
+            })
+            .SingleOrDefaultAsync();
+
+        if (client is null)
+        {
+            isMissing = true;
+            isLoading = false;
+            return;
+        }
+
+        formModel = new ClientFormModel
+        {
+            Name = client.Name,
+            Email = client.Email,
+            Phone = client.Phone
+        };
+
+        contractCount = client.ContractCount;
+        isLoading = false;
+    }
+
+    private async Task HandleValidSubmitAsync()
+    {
+        isSaving = true;
+        showValidationSummary = true;
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+        Client client;
+        if (IsEditMode)
+        {
+            client = await dbContext.Clients.SingleOrDefaultAsync(item => item.ClientId == ClientId.Value);
+            if (client is null)
+            {
+                isSaving = false;
+                isMissing = true;
+                return;
+            }
+        }
+        else
+        {
+            client = new Client();
+            await dbContext.Clients.AddAsync(client);
+        }
+
+        client.Name = formModel.Name.Trim();
+        client.Email = formModel.Email.Trim();
+        client.Phone = formModel.Phone.Trim();
+
+        await dbContext.SaveChangesAsync();
+
+        isSaving = false;
+        NavigationManager.NavigateTo("/clients");
+    }
+
+    private sealed class ClientFormModel
+    {
+        [Required(ErrorMessage = "Client name is required.")]
+        [StringLength(100, ErrorMessage = "Client name must be 100 characters or fewer.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email address is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [StringLength(120, ErrorMessage = "Email address must be 120 characters or fewer.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone number is required.")]
+        [StringLength(30, ErrorMessage = "Phone number must be 30 characters or fewer.")]
+        [RegularExpression(@"^[0-9+()\-\s]+$", ErrorMessage = "Use digits, spaces, parentheses, plus signs, or hyphens only.")]
+        public string Phone { get; set; } = string.Empty;
+    }
+}
