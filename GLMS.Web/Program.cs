@@ -16,8 +16,15 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
 {
-    var baseUrl = builder.Configuration["Currency:ApiBaseUrl"] ?? "https://open.er-api.com";
-    client.BaseAddress = new Uri(baseUrl);
+    var baseUrl = builder.Configuration["Currency:ApiBaseUrl"] ?? "https://v6.exchangerate-api.com/v6";
+    var apiKey = builder.Configuration["Currency:ApiKey"];
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        throw new InvalidOperationException("Currency:ApiKey is not configured.");
+    }
+
+    client.BaseAddress = new Uri($"{baseUrl.TrimEnd('/')}/{apiKey.Trim()}/");
 });
 
 builder.Services.AddScoped<ICurrencyService, CurrencyServiceProxy>();

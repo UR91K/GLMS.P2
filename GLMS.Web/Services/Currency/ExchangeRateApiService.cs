@@ -31,7 +31,7 @@ public class ExchangeRateApiService : ICurrencyService
 
         try
         {
-            using var response = await _httpClient.GetAsync($"/v6/latest/{from}", cancellationToken);
+            using var response = await _httpClient.GetAsync($"latest/{from}", cancellationToken);
             response.EnsureSuccessStatusCode();
 
             await using var content = await response.Content.ReadAsStreamAsync(cancellationToken);
