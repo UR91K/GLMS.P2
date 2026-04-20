@@ -1,5 +1,6 @@
 using GLMS.Web.Components;
 using GLMS.Web.Data;
+using GLMS.Web.Services;
 using GLMS.Web.Services.Currency;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(opts =>
     opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped<DatabaseInitializationService>();
 
 builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
 {
@@ -30,6 +32,12 @@ builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
 builder.Services.AddScoped<ICurrencyService, CurrencyServiceProxy>();
 
 var app = builder.Build();
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var databaseInitializationService = scope.ServiceProvider.GetRequiredService<DatabaseInitializationService>();
+    await databaseInitializationService.InitializeAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
