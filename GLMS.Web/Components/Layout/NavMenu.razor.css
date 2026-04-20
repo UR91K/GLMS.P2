@@ -2,7 +2,7 @@
     display: grid;
     gap: 1.25rem;
     padding: 1.2rem;
-    border-radius: 28px;
+    border-radius: 0;
     min-height: calc(100vh - 2.5rem);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 250, 250, 0.88)),
@@ -28,7 +28,7 @@
     justify-content: center;
     width: 48px;
     height: 48px;
-    border-radius: 16px;
+    border-radius: 0;
     background: linear-gradient(135deg, var(--color-accent), #2f7f89);
     color: #f4fcfd;
     font-weight: 700;
@@ -55,7 +55,7 @@
     height: 44px;
     margin-left: auto;
     border: 1px solid var(--color-border);
-    border-radius: 14px;
+    border-radius: 0;
     background:
         url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2824,101,111,0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.2rem,
         rgba(24, 101, 111, 0.08);
@@ -80,7 +80,7 @@
     gap: 0.15rem;
     padding: 0.9rem 1rem;
     border: 1px solid transparent;
-    border-radius: 18px;
+    border-radius: 0;
     color: var(--color-text);
     transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
@@ -111,7 +111,7 @@
     margin-top: auto;
     padding: 1rem;
     border: 1px solid rgba(21, 52, 58, 0.08);
-    border-radius: 18px;
+    border-radius: 0;
     background: rgba(238, 244, 245, 0.8);
 }
 
