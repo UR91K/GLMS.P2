@@ -178,6 +178,16 @@ h1:focus {
     border-color: var(--color-border-strong);
 }
 
+.button-danger {
+    color: #fff;
+    background: var(--color-danger, #c0392b);
+    border-color: transparent;
+}
+
+.button-danger:hover {
+    background: #8f382d;
+}
+
 .button-compact {
     min-height: 41px;
     padding: 0 0.85rem;
@@ -543,6 +553,122 @@ h1:focus {
     color: var(--color-text-muted);
 }
 
+.confirm-row {
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.confirm-label {
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.actions-cell {
+    width: 170px;
+}
+
+.actions-select {
+    min-width: 138px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.glms-dropdown-menu {
+    position: relative;
+}
+
+.dropdown-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dropdown-trigger::after {
+    content: "";
+    flex: 0 0 auto;
+    width: 0.48rem;
+    height: 0.48rem;
+    margin-top: -0.2rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    opacity: 0.7;
+}
+
+.dropdown-list {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    right: 0;
+    z-index: 11;
+    margin: 0;
+    padding: 0.35rem 0;
+    list-style: none;
+    border: 1px solid var(--color-border);
+    background: #ffffff;
+    box-shadow: var(--shadow-soft);
+}
+
+.dropdown-option {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    text-align: left;
+}
+
+.dropdown-option:hover,
+.dropdown-option:focus,
+.dropdown-option.is-active {
+    background: rgba(24, 101, 111, 0.08);
+    outline: none;
+}
+
+.dropdown-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+}
+
+.actions-select-empty {
+    pointer-events: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: none;
+    opacity: 0.45;
+    display: inline-block;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(18, 40, 45, 0.42);
+    backdrop-filter: blur(6px);
+}
+
+.modal-card {
+    width: min(100%, 420px);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-soft);
+}
+
+.contract-confirm-dialog {
+    display: grid;
+    gap: 1rem;
+}
+
+.dialog-actions {
+    justify-content: flex-end;
+}
+
 .placeholder-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -637,6 +763,14 @@ h1:focus {
     .data-table td {
         border-bottom: 0;
         padding: 0.55rem 1.1rem;
+    }
+
+    .actions-cell {
+        width: auto;
+    }
+
+    .actions-select {
+        width: 100%;
     }
 
     .data-table td::before {

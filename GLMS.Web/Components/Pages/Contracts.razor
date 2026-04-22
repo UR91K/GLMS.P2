@@ -161,13 +161,13 @@
                                         <span class="muted">Not uploaded</span>
                                     }
                                 </td>
-                                <td data-label="Actions">
-                                    <div class="button-row">
-                                        <button class="button button-secondary button-compact" type="button" disabled="@(!CanApprove(contract.Status) || isTransitioning)" @onclick="() => ChangeStatusAsync(contract.ContractId, ContractTransitionAction.Approve)">Approve</button>
-                                        <button class="button button-secondary button-compact" type="button" disabled="@(!CanSuspend(contract.Status) || isTransitioning)" @onclick="() => ChangeStatusAsync(contract.ContractId, ContractTransitionAction.Suspend)">Suspend</button>
-                                        <button class="button button-secondary button-compact" type="button" disabled="@(!CanResume(contract.Status) || isTransitioning)" @onclick="() => ChangeStatusAsync(contract.ContractId, ContractTransitionAction.Resume)">Resume</button>
-                                        <button class="button button-secondary button-compact" type="button" disabled="@(!CanExpire(contract.Status) || isTransitioning)" @onclick="() => ChangeStatusAsync(contract.ContractId, ContractTransitionAction.Expire)">Expire</button>
-                                    </div>
+                                <td data-label="Actions" class="actions-cell">
+                                    <DropdownMenu Placeholder="Actions"
+                                                  AriaLabel=@($"Actions for {contract.Title}")
+                                                  DisabledAriaLabel=@($"No actions available for {contract.Title}")
+                                                  Disabled="@isTransitioning"
+                                                  Options="@GetAvailableActions(contract.Status)"
+                                                  OnSelect="@(action => HandleActionSelectionAsync(contract, action))" />
                                 </td>
                             </tr>
                         }
@@ -177,6 +177,29 @@
         </section>
     }
 </div>
+
+@if (pendingConfirmContractId.HasValue && pendingConfirmAction.HasValue)
+{
+    <div class="modal-overlay" @onclick="CancelConfirm">
+        <section class="surface-card modal-card contract-confirm-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="contract-confirm-title"
+                 @onclick:stopPropagation="true">
+            <p class="eyebrow">Confirmation required</p>
+            <h2 id="contract-confirm-title" class="empty-state-title">@GetConfirmLabel(pendingConfirmAction.Value)</h2>
+            <p class="page-subtitle">@GetConfirmDescription(pendingConfirmAction.Value, pendingConfirmContractTitle)</p>
+            <div class="button-row dialog-actions">
+                <button class="button button-danger" type="button"
+                        disabled="@isTransitioning"
+                        @onclick="ConfirmActionAsync">Confirm</button>
+                <button class="button button-secondary" type="button"
+                        disabled="@isTransitioning"
+                        @onclick="CancelConfirm">Cancel</button>
+            </div>
+        </section>
+    </div>
+}
 
 @code {
     private List<ContractListItem> contracts = [];
@@ -188,6 +211,9 @@
     private bool isTransitioning;
     private string? transitionMessage;
     private bool transitionFailed;
+    private int? pendingConfirmContractId;
+    private string? pendingConfirmContractTitle;
+    private ContractTransitionAction? pendingConfirmAction;
 
     private IReadOnlyList<ContractListItem> filteredContracts => contracts
         .Where(contract =>
@@ -209,6 +235,7 @@
     private async Task LoadContractsAsync()
     {
         isLoading = true;
+        CancelConfirm();
 
         var contractRows = await ContractService.GetListAsync();
 
@@ -257,10 +284,100 @@
         isTransitioning = false;
     }
 
+    private async Task HandleActionSelectionAsync(ContractListItem contract, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            !Enum.TryParse<ContractTransitionAction>(value, out var action))
+        {
+            return;
+        }
+
+        if (RequiresConfirmation(action))
+        {
+            RequestConfirm(contract.ContractId, contract.Title, action);
+            return;
+        }
+
+        await ChangeStatusAsync(contract.ContractId, action);
+    }
+
+    private void RequestConfirm(int contractId, string contractTitle, ContractTransitionAction action)
+    {
+        pendingConfirmContractId = contractId;
+        pendingConfirmContractTitle = contractTitle;
+        pendingConfirmAction = action;
+    }
+
+    private void CancelConfirm()
+    {
+        pendingConfirmContractId = null;
+        pendingConfirmContractTitle = null;
+        pendingConfirmAction = null;
+    }
+
+    private async Task ConfirmActionAsync()
+    {
+        if (pendingConfirmContractId is null || pendingConfirmAction is null)
+        {
+            return;
+        }
+
+        var contractId = pendingConfirmContractId.Value;
+        var action = pendingConfirmAction.Value;
+
+        CancelConfirm();
+        await ChangeStatusAsync(contractId, action);
+    }
+
+    private static string GetConfirmLabel(ContractTransitionAction action) => action switch
+    {
+        ContractTransitionAction.Suspend => "Suspend this contract?",
+        ContractTransitionAction.Expire => "Expire this contract?",
+        _ => "Confirm this action?"
+    };
+
+    private static string GetConfirmDescription(ContractTransitionAction action, string? contractTitle) => action switch
+    {
+        ContractTransitionAction.Suspend => $"{contractTitle} will stop accepting new service work until it is resumed.",
+        ContractTransitionAction.Expire => $"{contractTitle} will be marked as expired and can no longer be used for active service delivery.",
+        _ => $"Apply this action to {contractTitle}."
+    };
+
     private static bool CanApprove(ContractStatus status) => status == ContractStatus.Draft;
     private static bool CanSuspend(ContractStatus status) => status == ContractStatus.Active;
     private static bool CanResume(ContractStatus status) => status == ContractStatus.OnHold;
-    private static bool CanExpire(ContractStatus status) => status != ContractStatus.Expired;
+    private static bool CanExpire(ContractStatus status) =>
+        status == ContractStatus.Active || status == ContractStatus.OnHold;
+
+    private static bool RequiresConfirmation(ContractTransitionAction action) =>
+        action is ContractTransitionAction.Suspend or ContractTransitionAction.Expire;
+
+    private static IReadOnlyList<DropdownMenuOption> GetAvailableActions(ContractStatus status)
+    {
+        var options = new List<DropdownMenuOption>(4);
+
+        if (CanApprove(status))
+        {
+            options.Add(new DropdownMenuOption(nameof(ContractTransitionAction.Approve), "Approve"));
+        }
+
+        if (CanSuspend(status))
+        {
+            options.Add(new DropdownMenuOption(nameof(ContractTransitionAction.Suspend), "Suspend"));
+        }
+
+        if (CanResume(status))
+        {
+            options.Add(new DropdownMenuOption(nameof(ContractTransitionAction.Resume), "Resume"));
+        }
+
+        if (CanExpire(status))
+        {
+            options.Add(new DropdownMenuOption(nameof(ContractTransitionAction.Expire), "Expire"));
+        }
+
+        return options;
+    }
 
     private bool TryGetSelectedStatus(out ContractStatus status)
     {
