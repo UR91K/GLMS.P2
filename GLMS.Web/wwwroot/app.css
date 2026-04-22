@@ -328,6 +328,27 @@ h1:focus {
     border-bottom: 1px solid rgba(21, 52, 58, 0.08);
     vertical-align: middle;
 }
+ 
+.service-requests-table th:nth-child(3),
+.service-requests-table td:nth-child(3) {
+    min-width: 180px;
+}
+
+.contracts-table th:nth-child(3),
+.contracts-table td:nth-child(3) {
+    width: 0.5%;
+    white-space: nowrap;
+}
+
+.contracts-table th:nth-child(4),
+.contracts-table td:nth-child(4) {
+    min-width: 190px;
+}
+
+.contracts-table tbody tr:nth-last-child(-n+2) .glms-dropdown-menu .dropdown-list {
+    top: auto;
+    bottom: calc(100% + 0.3rem);
+}
 
 .data-table thead th {
     font-size: 0.78rem;
@@ -642,6 +663,14 @@ h1:focus {
     display: inline-block;
 }
 
+.contracts-table .actions-cell {
+    width: 144px;
+}
+
+.contracts-table .actions-select {
+    min-width: 112px;
+}
+
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -663,6 +692,25 @@ h1:focus {
 .contract-confirm-dialog {
     display: grid;
     gap: 1rem;
+}
+
+.file-options-dialog {
+    display: grid;
+    gap: 1rem;
+    width: min(100%, 480px);
+}
+
+.file-detail-block {
+    padding: 0.75rem 1rem;
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    display: grid;
+    gap: 0.3rem;
+}
+
+.file-upload-section {
+    display: grid;
+    gap: 0.4rem;
 }
 
 .dialog-actions {

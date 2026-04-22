@@ -34,6 +34,13 @@
             </div>
         }
 
+        @if (!string.IsNullOrWhiteSpace(uploadMessage))
+        {
+            <div class="validation-block @(uploadFailed ? string.Empty : "success-block")" style="margin-bottom: 1.5rem;">
+                <p class="@(uploadFailed ? "validation-list" : "success-message")">@uploadMessage</p>
+            </div>
+        }
+
         <section class="stats-grid">
             <article class="surface-card stat-card">
                 <p class="stat-label">Contracts</p>
@@ -107,7 +114,7 @@
             }
             else
             {
-                <table class="data-table">
+                <table class="data-table contracts-table">
                     <thead>
                         <tr>
                             <th>Contract</th>
@@ -141,8 +148,9 @@
                                 </td>
                                 <td data-label="Term">
                                     <div class="stack">
-                                        <span>@contract.StartDate.ToString("dd MMM yyyy") to @contract.EndDate.ToString("dd MMM yyyy")</span>
-                                        <span class="muted">@GetRemainingDaysLabel(contract.EndDate)</span>
+                                        <span>Start: @contract.StartDate.ToString("dd MMM yyyy")</span>
+                                        <span>End: @contract.EndDate.ToString("dd MMM yyyy")</span>
+                                        <span class="muted">@GetExpiryLabel(contract.EndDate)</span>
                                     </div>
                                 </td>
                                 <td data-label="Status">
@@ -152,14 +160,11 @@
                                     <span class="pill pill-neutral">@contract.ServiceRequestCount request@(contract.ServiceRequestCount == 1 ? string.Empty : "s")</span>
                                 </td>
                                 <td data-label="Agreement file">
-                                    @if (contract.HasAgreementFile)
-                                    {
-                                        <a class="button button-secondary button-compact" href="@GetAgreementDownloadUrl(contract)" download="@contract.PdfOriginalFileName">Download PDF</a>
-                                    }
-                                    else
-                                    {
-                                        <span class="muted">Not uploaded</span>
-                                    }
+                                    <button class="button button-secondary button-compact"
+                                            type="button"
+                                            @onclick="() => OpenFileModal(contract)">
+                                        @(contract.HasAgreementFile ? "File options" : "Upload file")
+                                    </button>
                                 </td>
                                 <td data-label="Actions" class="actions-cell">
                                     <DropdownMenu Placeholder="Actions"
@@ -177,6 +182,63 @@
         </section>
     }
 </div>
+
+@if (fileModalContract is not null)
+{
+    <div class="modal-overlay" @onclick="CloseFileModal">
+        <section class="surface-card modal-card file-options-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="file-modal-title"
+                 @onclick:stopPropagation="true">
+            <div>
+                <p class="eyebrow">Agreement file</p>
+                <h2 id="file-modal-title" class="empty-state-title">@fileModalContract.Title</h2>
+            </div>
+
+            @if (fileModalContract.HasAgreementFile)
+            {
+                <div class="file-detail-block">
+                    <p class="info-label">Current file</p>
+                    <p class="mono">@fileModalContract.PdfOriginalFileName</p>
+                </div>
+                <div>
+                    <a class="button button-secondary"
+                       href="@GetAgreementDownloadUrl(fileModalContract)"
+                       download="@fileModalContract.PdfOriginalFileName">
+                        Download PDF
+                    </a>
+                </div>
+            }
+            else
+            {
+                <p class="muted">No agreement file has been uploaded for this contract yet.</p>
+            }
+
+            <div class="file-upload-section">
+                <p class="info-label">@(fileModalContract.HasAgreementFile ? "Replace file" : "Upload file") &mdash; PDF, max 10 MB</p>
+                <InputFile OnChange="@(args => UploadAgreementFromModalAsync(fileModalContract.ContractId, args))"
+                           accept=".pdf,application/pdf"
+                           disabled="@isUploadingAgreement" />
+                @if (isUploadingAgreement)
+                {
+                    <p class="muted" style="margin-top: 0.5rem; font-size: 0.88rem;">Uploading, please wait&hellip;</p>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(uploadMessage))
+            {
+                <div class="validation-block @(uploadFailed ? string.Empty : "success-block")">
+                    <p class="@(uploadFailed ? "validation-list" : "success-message")">@uploadMessage</p>
+                </div>
+            }
+
+            <div class="button-row dialog-actions">
+                <button class="button button-secondary" type="button" @onclick="CloseFileModal">Close</button>
+            </div>
+        </section>
+    </div>
+}
 
 @if (pendingConfirmContractId.HasValue && pendingConfirmAction.HasValue)
 {
@@ -211,9 +273,13 @@
     private bool isTransitioning;
     private string? transitionMessage;
     private bool transitionFailed;
+    private bool isUploadingAgreement;
+    private string? uploadMessage;
+    private bool uploadFailed;
     private int? pendingConfirmContractId;
     private string? pendingConfirmContractTitle;
     private ContractTransitionAction? pendingConfirmAction;
+    private ContractListItem? fileModalContract;
 
     private IReadOnlyList<ContractListItem> filteredContracts => contracts
         .Where(contract =>
@@ -284,6 +350,48 @@
         isTransitioning = false;
     }
 
+    private async Task UploadAgreementAsync(int contractId, InputFileChangeEventArgs args)
+    {
+        uploadMessage = null;
+        uploadFailed = false;
+
+        var file = args.File;
+        if (file is null)
+        {
+            return;
+        }
+
+        isUploadingAgreement = true;
+
+        try
+        {
+            await using var stream = file.OpenReadStream(10 * 1024 * 1024);
+            var result = await ContractService.UploadAgreementAsync(
+                contractId,
+                file.Name,
+                file.ContentType,
+                file.Size,
+                stream);
+
+            uploadMessage = result.Message;
+            uploadFailed = !result.Succeeded;
+
+            if (result.Succeeded)
+            {
+                await LoadContractsAsync();
+            }
+        }
+        catch (IOException)
+        {
+            uploadFailed = true;
+            uploadMessage = "The selected file could not be read. Ensure it is a valid PDF under 10 MB.";
+        }
+        finally
+        {
+            isUploadingAgreement = false;
+        }
+    }
+
     private async Task HandleActionSelectionAsync(ContractListItem contract, string? value)
     {
         if (string.IsNullOrWhiteSpace(value) ||
@@ -313,6 +421,29 @@
         pendingConfirmContractId = null;
         pendingConfirmContractTitle = null;
         pendingConfirmAction = null;
+    }
+
+    private void OpenFileModal(ContractListItem contract)
+    {
+        fileModalContract = contract;
+        uploadMessage = null;
+        uploadFailed = false;
+    }
+
+    private void CloseFileModal()
+    {
+        fileModalContract = null;
+        uploadMessage = null;
+        uploadFailed = false;
+    }
+
+    private async Task UploadAgreementFromModalAsync(int contractId, InputFileChangeEventArgs args)
+    {
+        await UploadAgreementAsync(contractId, args);
+        if (!uploadFailed)
+        {
+            CloseFileModal();
+        }
     }
 
     private async Task ConfirmActionAsync()
@@ -398,7 +529,7 @@
         _ => "pill-draft"
     };
 
-    private static string GetRemainingDaysLabel(DateTime endDate)
+    private static string GetExpiryLabel(DateTime endDate)
     {
         var days = (endDate.Date - DateTime.Today).Days;
 
@@ -409,10 +540,10 @@
 
         if (days == 0)
         {
-            return "Ends today";
+            return "Expires today";
         }
 
-        return $"{days} day{(days == 1 ? string.Empty : "s")} remaining";
+        return $"Expires in {days} day{(days == 1 ? string.Empty : "s")}";
     }
 
     private static string GetAgreementDownloadUrl(ContractListItem contract) =>
