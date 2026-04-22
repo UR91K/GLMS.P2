@@ -1,6 +1,6 @@
 @page "/clients"
 @rendermode InteractiveServer
-@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject GLMS.Web.Services.Clients.IClientService ClientService
 
 <PageTitle>Clients</PageTitle>
 
@@ -74,6 +74,7 @@
                     <thead>
                         <tr>
                             <th>Client</th>
+                            <th>Region</th>
                             <th>Reference</th>
                             <th>Contact</th>
                             <th>Contracts</th>
@@ -89,6 +90,9 @@
                                         <strong>@client.Name</strong>
                                         <span class="muted">Primary account holder</span>
                                     </div>
+                                </td>
+                                <td data-label="Region">
+                                    <span class="pill pill-neutral">@client.Region</span>
                                 </td>
                                 <td data-label="Reference">
                                     <div class="stack mono">
@@ -143,19 +147,7 @@
     {
         isLoading = true;
 
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-        var clientRows = await dbContext.Clients
-            .AsNoTracking()
-            .OrderBy(client => client.Name)
-            .Select(client => new
-            {
-                client.ClientId,
-                client.Name,
-                client.Email,
-                client.Phone,
-                ContractCount = client.Contracts.Count()
-            })
-            .ToListAsync();
+        var clientRows = await ClientService.GetListAsync();
 
         clients = clientRows
             .Select(client => new ClientListItem(
@@ -163,6 +155,7 @@
                 client.Name,
                 client.Email,
                 client.Phone,
+                client.Region,
                 client.ContractCount))
             .ToList();
 
@@ -174,6 +167,7 @@
         string Name,
         string Email,
         string Phone,
+        string Region,
         int ContractCount)
     {
         public bool HasFullContactDetails =>

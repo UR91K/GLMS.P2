@@ -1,6 +1,6 @@
 @page "/contracts"
 @rendermode InteractiveServer
-@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject GLMS.Web.Services.Contracts.IContractService ContractService
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
 
@@ -105,6 +105,7 @@
                         <tr>
                             <th>Contract</th>
                             <th>Client</th>
+                            <th>Service level</th>
                             <th>Term</th>
                             <th>Status</th>
                             <th>Service requests</th>
@@ -126,6 +127,9 @@
                                         <span>@contract.ClientName</span>
                                         <span class="muted mono">CLI-@contract.ClientId.ToString("D4")</span>
                                     </div>
+                                </td>
+                                <td data-label="Service level">
+                                    <span class="pill pill-neutral">@contract.ServiceLevel</span>
                                 </td>
                                 <td data-label="Term">
                                     <div class="stack">
@@ -187,25 +191,7 @@
     {
         isLoading = true;
 
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-        var contractRows = await dbContext.Contracts
-            .AsNoTracking()
-            .OrderBy(contract => contract.EndDate)
-            .ThenBy(contract => contract.Title)
-            .Select(contract => new
-            {
-                contract.ContractId,
-                contract.ClientId,
-                ClientName = contract.Client.Name,
-                contract.Title,
-                contract.StartDate,
-                contract.EndDate,
-                contract.Status,
-                ServiceRequestCount = contract.ServiceRequests.Count(),
-                contract.PdfFileName,
-                contract.PdfOriginalFileName
-            })
-            .ToListAsync();
+        var contractRows = await ContractService.GetListAsync();
 
         contracts = contractRows
             .Select(contract => new ContractListItem(
@@ -213,6 +199,7 @@
                 contract.ClientId,
                 contract.ClientName,
                 contract.Title,
+                contract.ServiceLevel,
                 contract.StartDate,
                 contract.EndDate,
                 contract.Status,
@@ -276,6 +263,7 @@
         int ClientId,
         string ClientName,
         string Title,
+        string ServiceLevel,
         DateTime StartDate,
         DateTime EndDate,
         ContractStatus Status,

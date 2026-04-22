@@ -1,7 +1,7 @@
 @page "/clients/new"
 @page "/clients/{ClientId:int}/edit"
 @rendermode InteractiveServer
-@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject GLMS.Web.Services.Clients.IClientService ClientService
 @inject NavigationManager NavigationManager
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -68,6 +68,13 @@
                                 <span class="field-hint">Keep the format readable. Spaces, digits, plus signs, and hyphens are accepted.</span>
                                 <ValidationMessage For="@(() => formModel.Phone)" />
                             </div>
+
+                            <div class="form-field">
+                                <label for="client-region">Region</label>
+                                <InputText id="client-region" class="field-control" @bind-Value="formModel.Region" placeholder="Gauteng" />
+                                <span class="field-hint">Use the operational region assigned to this client account.</span>
+                                <ValidationMessage For="@(() => formModel.Region)" />
+                            </div>
                         </div>
 
                         <div class="button-row">
@@ -127,26 +134,14 @@
         showValidationSummary = false;
         contractCount = 0;
 
-        if (!IsEditMode)
+        if (ClientId is not int clientId)
         {
             formModel = new ClientFormModel();
             isLoading = false;
             return;
         }
 
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-        var client = await dbContext.Clients
-            .AsNoTracking()
-            .Where(item => item.ClientId == ClientId.Value)
-            .Select(item => new
-            {
-                item.ClientId,
-                item.Name,
-                item.Email,
-                item.Phone,
-                ContractCount = item.Contracts.Count()
-            })
-            .SingleOrDefaultAsync();
+        var client = await ClientService.GetEditorAsync(clientId);
 
         if (client is null)
         {
@@ -159,7 +154,8 @@
         {
             Name = client.Name,
             Email = client.Email,
-            Phone = client.Phone
+            Phone = client.Phone,
+            Region = client.Region
         };
 
         contractCount = client.ContractCount;
@@ -171,30 +167,21 @@
         isSaving = true;
         showValidationSummary = true;
 
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
-        Client client;
-        if (IsEditMode)
+        try
         {
-            client = await dbContext.Clients.SingleOrDefaultAsync(item => item.ClientId == ClientId.Value);
-            if (client is null)
-            {
-                isSaving = false;
-                isMissing = true;
-                return;
-            }
+            await ClientService.SaveAsync(new GLMS.Web.DTOs.ClientUpsertCommand(
+                IsEditMode ? ClientId : null,
+                formModel.Name,
+                formModel.Email,
+                formModel.Phone,
+                formModel.Region));
         }
-        else
+        catch (InvalidOperationException)
         {
-            client = new Client();
-            await dbContext.Clients.AddAsync(client);
+            isSaving = false;
+            isMissing = true;
+            return;
         }
-
-        client.Name = formModel.Name.Trim();
-        client.Email = formModel.Email.Trim();
-        client.Phone = formModel.Phone.Trim();
-
-        await dbContext.SaveChangesAsync();
 
         isSaving = false;
         NavigationManager.NavigateTo("/clients");
@@ -215,5 +202,9 @@
         [StringLength(30, ErrorMessage = "Phone number must be 30 characters or fewer.")]
         [RegularExpression(@"^[0-9+()\-\s]+$", ErrorMessage = "Use digits, spaces, parentheses, plus signs, or hyphens only.")]
         public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Region is required.")]
+        [StringLength(80, ErrorMessage = "Region must be 80 characters or fewer.")]
+        public string Region { get; set; } = string.Empty;
     }
 }
