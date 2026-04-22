@@ -19,10 +19,10 @@ jobs:
           include-prerelease: true
 
       - name: Restore test project
-        run: dotnet restore GLMS/GLMS.Tests/GLMS.Tests.csproj
+        run: dotnet restore GLMS.Tests/GLMS.Tests.csproj
 
       - name: Build test project
-        run: dotnet build GLMS/GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-restore
+        run: dotnet build GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-restore
 
       - name: Run all tests
-        run: dotnet test GLMS/GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-build --verbosity normal
+        run: dotnet test GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-build --verbosity normal
