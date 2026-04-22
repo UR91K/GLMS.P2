@@ -1,4 +1,8 @@
 @page "/contracts"
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
 
 <PageTitle>Contracts</PageTitle>
 
@@ -7,7 +11,280 @@
         <div class="page-header-copy">
             <p class="eyebrow">Contracts</p>
             <h1 class="page-title">Contracts workspace</h1>
-            <p class="page-subtitle">Shell page!</p>
+            <p class="page-subtitle">Track agreement periods, status workflow, and downloadable signed PDFs.</p>
+        </div>
+        <div class="button-row">
+            <button class="button button-secondary" type="button" @onclick="LoadContractsAsync">Refresh list</button>
         </div>
     </header>
+
+    @if (isLoading)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Loading contracts</h2>
+            <p class="empty-state-copy">The contracts and linked client records are being read from the database.</p>
+        </section>
+    }
+    else
+    {
+        <section class="stats-grid">
+            <article class="surface-card stat-card">
+                <p class="stat-label">Contracts</p>
+                <p class="stat-value">@contracts.Count</p>
+                <p class="stat-meta">Total agreements currently in the system.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">Active</p>
+                <p class="stat-value">@contracts.Count(contract => contract.Status == ContractStatus.Active)</p>
+                <p class="stat-meta">Contracts that allow service requests right now.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">With signed PDF</p>
+                <p class="stat-value">@contracts.Count(contract => contract.HasAgreementFile)</p>
+                <p class="stat-meta">Records that already include an uploaded signed agreement.</p>
+            </article>
+        </section>
+
+        <section class="surface-card section-card data-table-shell">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <input class="search-input"
+                           @bind="searchTerm"
+                           @bind:event="oninput"
+                           placeholder="Search by title or client"
+                           aria-label="Search contracts" />
+                </div>
+
+                <div class="toolbar-group filters-group">
+                    <label class="filter-field" for="contract-status-filter">
+                        <span>Status</span>
+                        <InputSelect id="contract-status-filter" class="field-control filter-control" @bind-Value="selectedStatusFilter">
+                            <option value="">All statuses</option>
+                            @foreach (var status in Enum.GetValues<ContractStatus>())
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label class="filter-field" for="contract-date-from">
+                        <span>Start from</span>
+                        <InputDate id="contract-date-from" class="field-control filter-control" TValue="DateTime?" @bind-Value="startDateFrom" />
+                    </label>
+
+                    <label class="filter-field" for="contract-date-to">
+                        <span>End until</span>
+                        <InputDate id="contract-date-to" class="field-control filter-control" TValue="DateTime?" @bind-Value="endDateTo" />
+                    </label>
+
+                    <button class="button button-secondary button-compact" type="button" @onclick="ClearFilters">Clear filters</button>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <div class="toolbar-group inline-note">
+                    <span>@filteredContracts.Count result@(filteredContracts.Count == 1 ? string.Empty : "s")</span>
+                    <span>&middot;</span>
+                    <span>Sorted by nearest end date</span>
+                </div>
+            </div>
+
+            @if (filteredContracts.Count == 0)
+            {
+                <div class="empty-state">
+                    <h2 class="empty-state-title">No matching contracts</h2>
+                    <p class="empty-state-copy">Try broadening your status or date range filters to locate agreements.</p>
+                </div>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Contract</th>
+                            <th>Client</th>
+                            <th>Term</th>
+                            <th>Status</th>
+                            <th>Service requests</th>
+                            <th>Agreement file</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var contract in filteredContracts)
+                        {
+                            <tr>
+                                <td data-label="Contract">
+                                    <div class="stack">
+                                        <strong>@contract.Title</strong>
+                                        <span class="muted mono">CON-@contract.ContractId.ToString("D5")</span>
+                                    </div>
+                                </td>
+                                <td data-label="Client">
+                                    <div class="stack">
+                                        <span>@contract.ClientName</span>
+                                        <span class="muted mono">CLI-@contract.ClientId.ToString("D4")</span>
+                                    </div>
+                                </td>
+                                <td data-label="Term">
+                                    <div class="stack">
+                                        <span>@contract.StartDate.ToString("dd MMM yyyy") to @contract.EndDate.ToString("dd MMM yyyy")</span>
+                                        <span class="muted">@GetRemainingDaysLabel(contract.EndDate)</span>
+                                    </div>
+                                </td>
+                                <td data-label="Status">
+                                    <span class="pill @GetStatusPillClass(contract.Status)">@contract.Status</span>
+                                </td>
+                                <td data-label="Service requests">
+                                    <span class="pill pill-neutral">@contract.ServiceRequestCount request@(contract.ServiceRequestCount == 1 ? string.Empty : "s")</span>
+                                </td>
+                                <td data-label="Agreement file">
+                                    @if (contract.HasAgreementFile)
+                                    {
+                                        <a class="button button-secondary button-compact" href="@GetAgreementDownloadUrl(contract)" download="@contract.PdfOriginalFileName">Download PDF</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">Not uploaded</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
 </div>
+
+@code {
+    private List<ContractListItem> contracts = [];
+    private string searchTerm = string.Empty;
+    private string selectedStatusFilter = string.Empty;
+    private DateTime? startDateFrom;
+    private DateTime? endDateTo;
+    private bool isLoading = true;
+
+    private IReadOnlyList<ContractListItem> filteredContracts => contracts
+        .Where(contract =>
+            (string.IsNullOrWhiteSpace(searchTerm) ||
+             contract.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             contract.ClientName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+            (!TryGetSelectedStatus(out var selectedStatus) || contract.Status == selectedStatus) &&
+            (!startDateFrom.HasValue || contract.StartDate.Date >= startDateFrom.Value.Date) &&
+            (!endDateTo.HasValue || contract.EndDate.Date <= endDateTo.Value.Date))
+        .OrderBy(contract => contract.EndDate)
+        .ThenBy(contract => contract.Title)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContractsAsync();
+    }
+
+    private async Task LoadContractsAsync()
+    {
+        isLoading = true;
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var contractRows = await dbContext.Contracts
+            .AsNoTracking()
+            .OrderBy(contract => contract.EndDate)
+            .ThenBy(contract => contract.Title)
+            .Select(contract => new
+            {
+                contract.ContractId,
+                contract.ClientId,
+                ClientName = contract.Client.Name,
+                contract.Title,
+                contract.StartDate,
+                contract.EndDate,
+                contract.Status,
+                ServiceRequestCount = contract.ServiceRequests.Count(),
+                contract.PdfFileName,
+                contract.PdfOriginalFileName
+            })
+            .ToListAsync();
+
+        contracts = contractRows
+            .Select(contract => new ContractListItem(
+                contract.ContractId,
+                contract.ClientId,
+                contract.ClientName,
+                contract.Title,
+                contract.StartDate,
+                contract.EndDate,
+                contract.Status,
+                contract.ServiceRequestCount,
+                contract.PdfFileName,
+                contract.PdfOriginalFileName))
+            .ToList();
+
+        isLoading = false;
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedStatusFilter = string.Empty;
+        startDateFrom = null;
+        endDateTo = null;
+    }
+
+    private bool TryGetSelectedStatus(out ContractStatus status)
+    {
+        if (Enum.TryParse<ContractStatus>(selectedStatusFilter, out status))
+        {
+            return true;
+        }
+
+        status = default;
+        return false;
+    }
+
+    private static string GetStatusPillClass(ContractStatus status) => status switch
+    {
+        ContractStatus.Active => "pill-active",
+        ContractStatus.OnHold => "pill-onhold",
+        ContractStatus.Expired => "pill-expired",
+        _ => "pill-draft"
+    };
+
+    private static string GetRemainingDaysLabel(DateTime endDate)
+    {
+        var days = (endDate.Date - DateTime.Today).Days;
+
+        if (days < 0)
+        {
+            return $"Expired {Math.Abs(days)} day{(Math.Abs(days) == 1 ? string.Empty : "s")} ago";
+        }
+
+        if (days == 0)
+        {
+            return "Ends today";
+        }
+
+        return $"{days} day{(days == 1 ? string.Empty : "s")} remaining";
+    }
+
+    private static string GetAgreementDownloadUrl(ContractListItem contract) =>
+        $"/uploads/contracts/{Uri.EscapeDataString(contract.PdfFileName!)}";
+
+    private sealed record ContractListItem(
+        int ContractId,
+        int ClientId,
+        string ClientName,
+        string Title,
+        DateTime StartDate,
+        DateTime EndDate,
+        ContractStatus Status,
+        int ServiceRequestCount,
+        string? PdfFileName,
+        string? PdfOriginalFileName)
+    {
+        public bool HasAgreementFile =>
+            !string.IsNullOrWhiteSpace(PdfFileName) &&
+            !string.IsNullOrWhiteSpace(PdfOriginalFileName);
+    }
+}
