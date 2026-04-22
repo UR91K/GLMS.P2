@@ -83,6 +83,17 @@
                         </InputSelect>
                     </label>
 
+                    <label class="filter-field" for="contract-service-level-filter">
+                        <span>Service level</span>
+                        <InputSelect id="contract-service-level-filter" class="field-control filter-control" @bind-Value="selectedServiceLevelFilter">
+                            <option value="">All levels</option>
+                            @foreach (var serviceLevel in serviceLevelFilters)
+                            {
+                                <option value="@serviceLevel">@serviceLevel</option>
+                            }
+                        </InputSelect>
+                    </label>
+
                     <label class="filter-field" for="contract-date-from">
                         <span>Start from</span>
                         <InputDate id="contract-date-from" class="field-control filter-control" TValue="DateTime?" @bind-Value="startDateFrom" />
@@ -267,6 +278,7 @@
     private List<ContractListItem> contracts = [];
     private string searchTerm = string.Empty;
     private string selectedStatusFilter = string.Empty;
+    private string selectedServiceLevelFilter = string.Empty;
     private DateTime? startDateFrom;
     private DateTime? endDateTo;
     private bool isLoading = true;
@@ -281,12 +293,21 @@
     private ContractTransitionAction? pendingConfirmAction;
     private ContractListItem? fileModalContract;
 
+    private IReadOnlyList<string> serviceLevelFilters => contracts
+        .Select(contract => contract.ServiceLevel)
+        .Where(level => !string.IsNullOrWhiteSpace(level))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(level => level)
+        .ToList();
+
     private IReadOnlyList<ContractListItem> filteredContracts => contracts
         .Where(contract =>
             (string.IsNullOrWhiteSpace(searchTerm) ||
              contract.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
              contract.ClientName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
             (!TryGetSelectedStatus(out var selectedStatus) || contract.Status == selectedStatus) &&
+            (string.IsNullOrWhiteSpace(selectedServiceLevelFilter) ||
+             string.Equals(contract.ServiceLevel, selectedServiceLevelFilter, StringComparison.OrdinalIgnoreCase)) &&
             (!startDateFrom.HasValue || contract.StartDate.Date >= startDateFrom.Value.Date) &&
             (!endDateTo.HasValue || contract.EndDate.Date <= endDateTo.Value.Date))
         .OrderBy(contract => contract.EndDate)
@@ -327,6 +348,7 @@
     {
         searchTerm = string.Empty;
         selectedStatusFilter = string.Empty;
+        selectedServiceLevelFilter = string.Empty;
         startDateFrom = null;
         endDateTo = null;
     }
