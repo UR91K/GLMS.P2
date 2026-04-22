@@ -37,7 +37,7 @@ public class ExchangeRateApiService : ICurrencyService
             await using var content = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var json = await JsonDocument.ParseAsync(content, cancellationToken: cancellationToken);
 
-            if (!json.RootElement.TryGetProperty("rates", out var ratesElement))
+            if (!json.RootElement.TryGetProperty("conversion_rates", out var ratesElement))
             {
                 throw new CurrencyServiceException("Currency API response is missing rates data.");
             }
