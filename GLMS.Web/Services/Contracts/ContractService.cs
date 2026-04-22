@@ -162,6 +162,7 @@ public class ContractService : IContractService
             return new ContractAgreementUploadResultDto(false, contractId, "Only .pdf files are allowed for signed agreements.", null, null);
         }
 
+        // MIME check to prevent spoofing, not entirely reliable but better than nothing
         if (!string.IsNullOrWhiteSpace(contentType) &&
             !string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
