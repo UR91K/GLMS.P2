@@ -1,0 +1,293 @@
+@page "/service-requests/new"
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject ICurrencyService CurrencyService
+@inject IServiceRequestService ServiceRequestService
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Components
+@using GLMS.Web.Services.Currency
+@using GLMS.Web.Services.Currency.Models
+@using GLMS.Web.Services.ServiceRequests
+
+<PageTitle>Create Service Request</PageTitle>
+
+<div class="page-shell">
+    <header class="page-header">
+        <div class="page-header-copy">
+            <p class="eyebrow">Service requests</p>
+            <h1 class="page-title">Create service request</h1>
+            <p class="page-subtitle">Create a request against a contract and preview the current USD to ZAR conversion before saving.</p>
+        </div>
+        <div class="button-row">
+            <a class="button button-secondary" href="/service-requests">Back to list</a>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Loading form</h2>
+            <p class="empty-state-copy">Reading available contracts and preparing exchange rate preview.</p>
+        </section>
+    }
+    else
+    {
+        <div class="form-shell">
+            <section class="surface-card form-card">
+                <EditForm FormName="service-request-editor" Model="formModel" OnValidSubmit="HandleValidSubmitAsync">
+                    <DataAnnotationsValidator />
+
+                    @if (showValidationSummary)
+                    {
+                        <div class="validation-block">
+                            <ValidationSummary class="validation-list" />
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(formError))
+                    {
+                        <div class="validation-block" style="margin-top: 1rem;">
+                            <p class="validation-message">@formError</p>
+                        </div>
+                    }
+
+                    <div class="form-grid" style="margin-top: 1rem;">
+                        <div class="form-section">
+                            <div class="form-field">
+                                <label for="sr-contract">Contract</label>
+                                <InputSelect id="sr-contract" class="field-control" @bind-Value="formModel.ContractId">
+                                    <option value="">Select a contract</option>
+                                    @foreach (var contract in contractOptions)
+                                    {
+                                        <option value="@contract.ContractId">@contract.ClientName - @contract.Title (@contract.Status)</option>
+                                    }
+                                </InputSelect>
+                                <span class="field-hint">Pick the client contract this request belongs to.</span>
+                                <ValidationMessage For="@(() => formModel.ContractId)" />
+                            </div>
+
+                            <div class="form-field">
+                                <label for="sr-description">Description</label>
+                                <InputTextArea id="sr-description" class="field-control" @bind-Value="formModel.Description" placeholder="Describe the requested service" />
+                                <span class="field-hint">Keep it specific so operations can process the request quickly.</span>
+                                <ValidationMessage For="@(() => formModel.Description)" />
+                            </div>
+
+                            <div class="form-field">
+                                <label for="sr-cost-usd">Cost (USD)</label>
+                                <InputNumber id="sr-cost-usd"
+                                             class="field-control"
+                                             @bind-Value="formModel.CostUsd"
+                                             @oninput="HandleCostUsdInputAsync"
+                                             step="0.01"
+                                             min="0.01" />
+                                <span class="field-hint">The request will be saved in ZAR using the latest available exchange rate.</span>
+                                <ValidationMessage For="@(() => formModel.CostUsd)" />
+
+                                <div class="field-readonly" style="margin-top: 0.45rem;">
+                                    <div class="stack mono">
+                                        <span><strong>Estimated ZAR:</strong> @estimatedCostZarLabel</span>
+                                        <span class="muted">Rate: @ratePreviewLabel</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="button-row">
+                            <button class="button button-primary" type="submit" disabled="@isSaving">@(isSaving ? "Creating..." : "Create request")</button>
+                            <a class="button button-secondary" href="/service-requests">Cancel</a>
+                        </div>
+                    </div>
+                </EditForm>
+            </section>
+
+            <aside class="aside-stack">
+                <section class="surface-card form-card">
+                    <p class="eyebrow">Record details</p>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-label">Mode</span>
+                            <span class="info-value">Create new request</span>
+                        </div>
+
+                        <div class="info-item">
+                            <span class="info-label">Reference</span>
+                            <span class="info-value mono">Assigned after save</span>
+                        </div>
+
+                        <div class="info-item">
+                            <span class="info-label">Contracts available</span>
+                            <span class="info-value">@contractCountLabel</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "contractId")]
+    public int? ContractId { get; set; }
+
+    private readonly ServiceRequestCreateFormModel formModel = new();
+    private List<ContractOption> contractOptions = [];
+    private CurrencyRateDto? ratePreview;
+    private CancellationTokenSource? ratePreviewDebounceCts;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showValidationSummary;
+
+    private string? formError;
+
+    private string contractCountLabel => $"{contractOptions.Count} contract{(contractOptions.Count == 1 ? string.Empty : "s")}";
+
+    private string estimatedCostZarLabel => ratePreview is null || formModel.CostUsd <= 0m
+        ? "-"
+        : $"ZAR {decimal.Round(formModel.CostUsd * ratePreview.Rate, 2, MidpointRounding.AwayFromZero):N2}";
+
+    private string ratePreviewLabel => ratePreview is null
+        ? "Not loaded"
+        : $"{ratePreview.Rate:N4} ({(ratePreview.FromCache ? "Cache" : "Live API")})";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        formError = null;
+        showValidationSummary = false;
+
+        await LoadContractOptionsAsync();
+
+        if (ContractId.HasValue && ContractId.Value > 0 && contractOptions.Any(option => option.ContractId == ContractId.Value))
+        {
+            formModel.ContractId = ContractId.Value;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task LoadContractOptionsAsync()
+    {
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+        var contractRows = await dbContext.Contracts
+            .AsNoTracking()
+            .OrderBy(contract => contract.Client.Name)
+            .ThenBy(contract => contract.Title)
+            .Select(contract => new
+            {
+                contract.ContractId,
+                contract.Title,
+                ClientName = contract.Client.Name,
+                contract.Status
+            })
+            .ToListAsync();
+
+        contractOptions = contractRows
+            .Select(contract => new ContractOption(
+                contract.ContractId,
+                contract.Title,
+                contract.ClientName,
+                contract.Status))
+            .ToList();
+    }
+
+    private async Task HandleValidSubmitAsync()
+    {
+        isSaving = true;
+        showValidationSummary = true;
+        formError = null;
+
+        try
+        {
+            var result = await ServiceRequestService.CreateAsync(new ServiceRequestCreateCommand(
+                formModel.ContractId ?? 0,
+                formModel.Description,
+                formModel.CostUsd));
+
+            NavigationManager.NavigateTo($"/service-requests?created={result.ServiceRequestId}");
+        }
+        catch (CurrencyServiceException ex)
+        {
+            formError = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            formError = ex.Message;
+        }
+        catch (ArgumentException ex)
+        {
+            formError = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task HandleCostUsdInputAsync(ChangeEventArgs e)
+    {
+        formError = null;
+
+        ratePreviewDebounceCts?.Cancel();
+        ratePreviewDebounceCts?.Dispose();
+        ratePreviewDebounceCts = null;
+
+        if (!decimal.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var inputValue) || inputValue <= 0m)
+        {
+            ratePreview = null;
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        ratePreviewDebounceCts = cts;
+
+        try
+        {
+            await Task.Delay(350, cts.Token);
+            var latestRate = await CurrencyService.GetRateAsync("USD", "ZAR");
+
+            if (!cts.IsCancellationRequested)
+            {
+                ratePreview = latestRate;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // dont do anything, a newer keystroke just scheduled a fresher request
+        }
+        catch (CurrencyServiceException ex)
+        {
+            if (!cts.IsCancellationRequested)
+            {
+                ratePreview = null;
+                formError = ex.Message;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(ratePreviewDebounceCts, cts))
+            {
+                cts.Dispose();
+                ratePreviewDebounceCts = null;
+            }
+        }
+    }
+
+    private sealed record ContractOption(int ContractId, string Title, string ClientName, ContractStatus Status);
+
+    private sealed class ServiceRequestCreateFormModel
+    {
+        [Required(ErrorMessage = "Select a contract.")]
+        public int? ContractId { get; set; }
+
+        [Required(ErrorMessage = "Description is required.")]
+        [StringLength(280, ErrorMessage = "Description must be 280 characters or fewer.")]
+        public string Description { get; set; } = string.Empty;
+
+        [Range(0.01, 999_999_999.0, ErrorMessage = "USD cost must be greater than 0.")]
+        public decimal CostUsd { get; set; }
+    }
+}

@@ -1,4 +1,7 @@
 @page "/service-requests"
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@using Microsoft.AspNetCore.Components
 
 <PageTitle>Service Requests</PageTitle>
 
@@ -7,7 +10,263 @@
         <div class="page-header-copy">
             <p class="eyebrow">Service requests</p>
             <h1 class="page-title">Conversion and request workflow</h1>
-            <p class="page-subtitle">Shell page!</p>
+            <p class="page-subtitle">Track saved USD to ZAR conversions and manage active contracts.</p>
+        </div>
+        <div class="button-row">
+            <a class="button button-primary" href="/service-requests/new">+ New service request</a>
         </div>
     </header>
+
+    @if (isLoading)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Loading service requests</h2>
+            <p class="empty-state-copy">Contracts, exchange preview data, and request history are being loaded.</p>
+        </section>
+    }
+    else
+    {
+        <section class="stats-grid">
+            <article class="surface-card stat-card">
+                <p class="stat-label">Requests</p>
+                <p class="stat-value">@serviceRequests.Count</p>
+                <p class="stat-meta">Total service requests currently on record.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">Open</p>
+                <p class="stat-value">@serviceRequests.Count(request => request.Status == ServiceRequestStatus.Open)</p>
+                <p class="stat-meta">Items still being worked on by operations.</p>
+            </article>
+
+            <article class="surface-card stat-card">
+                <p class="stat-label">Average value</p>
+                <p class="stat-value">@averageValueLabel</p>
+                <p class="stat-meta">Mean request value in ZAR across all records.</p>
+            </article>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(globalSuccessMessage))
+        {
+            <div class="validation-block success-block" style="margin-bottom: 1.5rem;">
+                <p class="success-message">@globalSuccessMessage</p>
+            </div>
+        }
+
+        <section class="surface-card section-card data-table-shell">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <input class="search-input"
+                           @bind="searchTerm"
+                           @bind:event="oninput"
+                           placeholder="Search by description, client, or contract"
+                           aria-label="Search service requests" />
+                </div>
+
+                <div class="toolbar-group filters-group">
+                    <label class="filter-field" for="request-status-filter">
+                        <span>Status</span>
+                        <InputSelect id="request-status-filter" class="field-control filter-control" @bind-Value="selectedStatusFilter">
+                            <option value="">All statuses</option>
+                            @foreach (var status in Enum.GetValues<ServiceRequestStatus>())
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </label>
+                    <button class="button button-secondary button-compact" type="button" @onclick="ClearFilters">Clear filters</button>
+                    <button class="button button-secondary button-compact" type="button" @onclick="LoadWorkspaceAsync" title="Refresh data">
+                        <span aria-hidden="true">↻</span> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <div class="toolbar-group inline-note">
+                    <span>@filteredRequests.Count result@(filteredRequests.Count == 1 ? string.Empty : "s")</span>
+                    <span>&middot;</span>
+                    <span>Sorted by newest first</span>
+                </div>
+            </div>
+
+            @if (filteredRequests.Count == 0)
+            {
+                <div class="empty-state">
+                    <h2 class="empty-state-title">No matching service requests</h2>
+                    <p class="empty-state-copy">Try a broader search term or clear the status filter.</p>
+                </div>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Contract</th>
+                            <th>Conversion</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var request in filteredRequests)
+                        {
+                            <tr>
+                                <td data-label="Request">
+                                    <div class="stack">
+                                        <strong>@request.Description</strong>
+                                        <span class="muted mono">SR-@request.ServiceRequestId.ToString("D5")</span>
+                                    </div>
+                                </td>
+                                <td data-label="Contract">
+                                    <div class="stack">
+                                        <span>@request.ClientName</span>
+                                        <span class="muted">@request.ContractTitle</span>
+                                    </div>
+                                </td>
+                                <td data-label="Conversion">
+                                    <div class="stack mono">
+                                        <span>USD @request.CostUsd.ToString("N2")</span>
+                                        <span class="muted">x @request.ExchangeRate.ToString("N4") = ZAR @request.CostZar.ToString("N2")</span>
+                                    </div>
+                                </td>
+                                <td data-label="Status">
+                                    <span class="pill @GetStatusPillClass(request.Status)">@request.Status</span>
+                                </td>
+                                <td data-label="Created">
+                                    <span class="mono">@request.CreatedAtUtc.ToString("dd MMM yyyy HH:mm") UTC</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
 </div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "created")]
+    public int? CreatedServiceRequestId { get; set; }
+
+    private List<ServiceRequestListItem> serviceRequests = [];
+    
+    private string searchTerm = string.Empty;
+    private string selectedStatusFilter = string.Empty;
+    
+    private bool isLoading = true;
+    
+    private string? globalSuccessMessage;
+    private int? displayedCreatedServiceRequestId;
+
+    private IReadOnlyList<ServiceRequestListItem> filteredRequests => serviceRequests
+        .Where(request =>
+            (string.IsNullOrWhiteSpace(searchTerm) ||
+             request.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             request.ClientName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             request.ContractTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+            (!TryGetSelectedStatus(out var selectedStatus) || request.Status == selectedStatus))
+        .OrderByDescending(request => request.CreatedAtUtc)
+        .ThenBy(request => request.ServiceRequestId)
+        .ToList();
+
+    private string averageValueLabel => serviceRequests.Count == 0
+        ? "ZAR 0.00"
+        : $"ZAR {serviceRequests.Average(request => request.CostZar):N2}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkspaceAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (CreatedServiceRequestId.HasValue && CreatedServiceRequestId.Value > 0 && displayedCreatedServiceRequestId != CreatedServiceRequestId)
+        {
+            displayedCreatedServiceRequestId = CreatedServiceRequestId;
+            globalSuccessMessage = $"Service request SR-{CreatedServiceRequestId.Value:D5} created successfully.";
+        }
+        else if (!CreatedServiceRequestId.HasValue)
+        {
+            displayedCreatedServiceRequestId = null;
+            globalSuccessMessage = null;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task LoadWorkspaceAsync()
+    {
+        isLoading = true;
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+        var requestRows = await dbContext.ServiceRequests
+            .AsNoTracking()
+            .OrderByDescending(request => request.CreatedAt)
+            .Select(request => new
+            {
+                request.ServiceRequestId,
+                request.Description,
+                request.CostUsd,
+                request.ExchangeRate,
+                request.CostZar,
+                request.Status,
+                request.CreatedAt,
+                ContractTitle = request.Contract.Title,
+                ClientName = request.Contract.Client.Name
+            })
+            .ToListAsync();
+
+        serviceRequests = requestRows
+            .Select(request => new ServiceRequestListItem(
+                request.ServiceRequestId,
+                request.Description,
+                request.CostUsd,
+                request.ExchangeRate,
+                request.CostZar,
+                request.Status,
+                DateTime.SpecifyKind(request.CreatedAt, DateTimeKind.Utc),
+                request.ContractTitle,
+                request.ClientName))
+            .ToList();
+
+        isLoading = false;
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedStatusFilter = string.Empty;
+    }
+
+    private bool TryGetSelectedStatus(out ServiceRequestStatus status)
+    {
+        if (Enum.TryParse<ServiceRequestStatus>(selectedStatusFilter, out status))
+        {
+            return true;
+        }
+
+        status = default;
+        return false;
+    }
+
+    private static string GetStatusPillClass(ServiceRequestStatus status) => status switch
+    {
+        ServiceRequestStatus.Open => "pill-onhold",
+        ServiceRequestStatus.Completed => "pill-active",
+        ServiceRequestStatus.Invalid => "pill-expired",
+        _ => "pill-neutral"
+    };
+
+    private sealed record ServiceRequestListItem(
+        int ServiceRequestId,
+        string Description,
+        decimal CostUsd,
+        decimal ExchangeRate,
+        decimal CostZar,
+        ServiceRequestStatus Status,
+        DateTime CreatedAtUtc,
+        string ContractTitle,
+        string ClientName);
+}
