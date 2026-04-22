@@ -54,6 +54,22 @@
                         placeholder="Search by name, email, or phone"
                         aria-label="Search clients" />
                 </div>
+                <div class="toolbar-group filters-group">
+                    <label class="filter-field" for="client-region-filter">
+                        <span>Region</span>
+                        <InputSelect id="client-region-filter" class="field-control filter-control" @bind-Value="selectedRegionFilter">
+                            <option value="">All regions</option>
+                            @foreach (var region in regionFilters)
+                            {
+                                <option value="@region">@region</option>
+                            }
+                        </InputSelect>
+                    </label>
+                    <button class="button button-secondary button-compact" type="button" @onclick="ClearFilters">Clear filters</button>
+                </div>
+            </div>
+
+            <div class="toolbar">
                 <div class="toolbar-group inline-note">
                     <span>@filteredClients.Count result@(filteredClients.Count == 1 ? string.Empty : "s")</span>
                     <span>&middot;</span>
@@ -124,14 +140,24 @@
 @code {
     private List<ClientListItem> clients = [];
     private string searchTerm = string.Empty;
+    private string selectedRegionFilter = string.Empty;
     private bool isLoading = true;
+
+    private IReadOnlyList<string> regionFilters => clients
+        .Select(client => client.Region)
+        .Where(region => !string.IsNullOrWhiteSpace(region))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(region => region)
+        .ToList();
 
     private IReadOnlyList<ClientListItem> filteredClients => clients
         .Where(client =>
-            string.IsNullOrWhiteSpace(searchTerm) ||
-            client.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-            client.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-            client.Phone.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            (string.IsNullOrWhiteSpace(searchTerm) ||
+             client.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             client.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             client.Phone.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(selectedRegionFilter) ||
+             string.Equals(client.Region, selectedRegionFilter, StringComparison.OrdinalIgnoreCase)))
         .ToList();
 
     private string contactCoverage => clients.Count == 0
@@ -160,6 +186,12 @@
             .ToList();
 
         isLoading = false;
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedRegionFilter = string.Empty;
     }
 
     private sealed record ClientListItem(
