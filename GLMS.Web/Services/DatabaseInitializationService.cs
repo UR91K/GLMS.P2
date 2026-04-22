@@ -42,11 +42,13 @@ public class DatabaseInitializationService
                 Name = "Apex Logistics",
                 Email = "operations@apexlogistics.co.za",
                 Phone = "+27 11 458 2100",
+                Region = "Gauteng",
                 Contracts =
                 [
                     new Contract
                     {
                         Title = "Fleet tracking and maintenance agreement",
+                        ServiceLevel = "Gold",
                         StartDate = today.AddMonths(-5),
                         EndDate = today.AddMonths(7),
                         Status = ContractStatus.Active,
@@ -77,6 +79,7 @@ public class DatabaseInitializationService
                     new Contract
                     {
                         Title = "Warehouse equipment support",
+                        ServiceLevel = "Silver",
                         StartDate = today.AddMonths(-2),
                         EndDate = today.AddMonths(10),
                         Status = ContractStatus.OnHold,
@@ -90,11 +93,13 @@ public class DatabaseInitializationService
                 Name = "Northwind Retail Group",
                 Email = "procurement@northwindretail.co.za",
                 Phone = "+27 21 555 0184",
+                Region = "Western Cape",
                 Contracts =
                 [
                     new Contract
                     {
                         Title = "Point-of-sale hardware lease",
+                        ServiceLevel = "Platinum",
                         StartDate = today.AddMonths(-11),
                         EndDate = today.AddMonths(1),
                         Status = ContractStatus.Active,
@@ -120,11 +125,13 @@ public class DatabaseInitializationService
                 Name = "BluePeak Manufacturing",
                 Email = "contracts@bluepeakmfg.com",
                 Phone = "+27 31 804 9921",
+                Region = "KwaZulu-Natal",
                 Contracts =
                 [
                     new Contract
                     {
                         Title = "Plant safety monitoring agreement",
+                        ServiceLevel = "Bronze",
                         StartDate = today.AddMonths(-18),
                         EndDate = today.AddMonths(-1),
                         Status = ContractStatus.Expired,
@@ -150,11 +157,13 @@ public class DatabaseInitializationService
                 Name = "Cedar Health Partners",
                 Email = "facilities@cedarhealth.org",
                 Phone = "+27 12 880 4477",
+                Region = "Gauteng",
                 Contracts =
                 [
                     new Contract
                     {
                         Title = "Diagnostic equipment standby lease",
+                        ServiceLevel = "Gold",
                         StartDate = today.AddDays(14),
                         EndDate = today.AddMonths(12),
                         Status = ContractStatus.Draft,

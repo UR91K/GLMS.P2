@@ -15,6 +15,16 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Client>()
+            .Property(c => c.Region)
+            .HasMaxLength(80)
+            .IsRequired();
+
+        modelBuilder.Entity<Contract>()
+            .Property(c => c.ServiceLevel)
+            .HasMaxLength(80)
+            .IsRequired();
+
         modelBuilder.Entity<Contract>()
             .Property(c => c.Status)
             .HasConversion<string>();

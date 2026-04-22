@@ -11,10 +11,16 @@ public class Contract
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;
 
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(150)]
     public string Title { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public ContractStatus Status { get; set; } = ContractStatus.Draft;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(80)]
+    public string ServiceLevel { get; set; } = string.Empty;
 
     public string? PdfFileName { get; set; }
     public string? PdfOriginalFileName { get; set; }
