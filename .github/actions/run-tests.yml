@@ -1,0 +1,28 @@
+name: Run Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          include-prerelease: true
+
+      - name: Restore test project
+        run: dotnet restore GLMS/GLMS.Tests/GLMS.Tests.csproj
+
+      - name: Build test project
+        run: dotnet build GLMS/GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-restore
+
+      - name: Run all tests
+        run: dotnet test GLMS/GLMS.Tests/GLMS.Tests.csproj --configuration Release --no-build --verbosity normal
