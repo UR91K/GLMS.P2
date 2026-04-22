@@ -1,5 +1,5 @@
 using System.Text.Json;
-using GLMS.Web.Services.Currency.Models;
+using GLMS.Web.DTOs;
 
 namespace GLMS.Web.Services.Currency;
 

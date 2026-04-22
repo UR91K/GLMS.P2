@@ -1,3 +1,5 @@
+using GLMS.Web.DTOs;
+
 namespace GLMS.Web.Services.Contracts;
 
 public interface IContractService
