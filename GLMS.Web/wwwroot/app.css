@@ -179,7 +179,7 @@ h1:focus {
 }
 
 .button-compact {
-    min-height: 38px;
+    min-height: 41px;
     padding: 0 0.85rem;
     font-size: 0.92rem;
 }
@@ -214,7 +214,7 @@ h1:focus {
 .toolbar {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: end;
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1.25rem;
@@ -223,8 +223,27 @@ h1:focus {
 .toolbar-group {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: end;
     gap: 0.75rem;
+}
+
+.filters-group {
+    align-items: end;
+}
+
+.filter-field {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 150px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.filter-control {
+    min-height: 41px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
 }
 
 .search-shell {
@@ -233,8 +252,9 @@ h1:focus {
 
 .search-input {
     width: 280px;
-    padding: 6px 10px;
-    font-size: 13px;
+    min-height: 41px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface-strong);
@@ -350,6 +370,26 @@ h1:focus {
     background: rgba(24, 101, 111, 0.08);
 }
 
+.pill-draft {
+    color: #475058;
+    background: rgba(108, 121, 128, 0.16);
+}
+
+.pill-active {
+    color: #155737;
+    background: rgba(44, 123, 87, 0.16);
+}
+
+.pill-onhold {
+    color: #724710;
+    background: rgba(165, 107, 20, 0.2);
+}
+
+.pill-expired {
+    color: #7c251a;
+    background: rgba(166, 71, 57, 0.18);
+}
+
 .empty-state {
     display: grid;
     gap: 0.9rem;
@@ -422,6 +462,12 @@ h1:focus {
     background: #ffffff;
 }
 
+.field-control.filter-control {
+    min-height: 40px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
+}
+
 .field-control::placeholder {
     color: var(--color-text-muted);
 }
@@ -453,6 +499,16 @@ h1:focus {
 .validation-message {
     font-size: 0.88rem;
     color: var(--color-danger);
+}
+
+.success-block {
+    border-color: rgba(44, 123, 87, 0.22);
+    background: rgba(44, 123, 87, 0.08);
+}
+
+.success-message {
+    font-size: 0.88rem;
+    color: var(--color-success);
 }
 
 .aside-stack {
@@ -547,6 +603,10 @@ h1:focus {
 
     .search-shell {
         width: 100%;
+    }
+
+    .filter-field {
+        min-width: 0;
     }
 }
 
