@@ -56,13 +56,18 @@
                             <div class="form-field">
                                 <label for="sr-contract">Contract</label>
                                 <InputSelect id="sr-contract" class="field-control" @bind-Value="formModel.ContractId">
+                                    // nielsen heuristic #5: error prevention
+                                    // disallow selecting unavailable contracts
                                     <option value="">Select a contract</option>
                                     @foreach (var contract in contractOptions)
                                     {
-                                        <option value="@contract.ContractId">@contract.ClientName - @contract.Title (@contract.Status)</option>
+                                        var isActive = contract.Status == ContractStatus.Active;
+                                        <option value="@contract.ContractId" disabled="@(!isActive)">
+                                            @contract.ClientName - @contract.Title (@contract.Status)@(!isActive ? " - unavailable" : string.Empty)
+                                        </option>
                                     }
                                 </InputSelect>
-                                <span class="field-hint">Pick the client contract this request belongs to.</span>
+                                <span class="field-hint">Only active contracts can accept new requests. Inactive contracts are shown but cannot be selected.</span>
                                 <ValidationMessage For="@(() => formModel.ContractId)" />
                             </div>
 
@@ -159,7 +164,8 @@
 
         await LoadContractOptionsAsync();
 
-        if (ContractId.HasValue && ContractId.Value > 0 && contractOptions.Any(option => option.ContractId == ContractId.Value))
+        if (ContractId.HasValue && ContractId.Value > 0 &&
+            contractOptions.Any(option => option.ContractId == ContractId.Value && option.Status == ContractStatus.Active))
         {
             formModel.ContractId = ContractId.Value;
         }
@@ -184,12 +190,19 @@
             })
             .ToListAsync();
 
+        // nielsen heuristic #6: recognition over recall
+        // show available contracts first, then the unavailable ones, 
+        // but keep the full list visible so users can see all their options and 
+        // understand why some are unavailable 
         contractOptions = contractRows
             .Select(contract => new ContractOption(
                 contract.ContractId,
                 contract.Title,
                 contract.ClientName,
                 contract.Status))
+            .OrderBy(contract => contract.Status == ContractStatus.Active ? 0 : 1)
+            .ThenBy(contract => contract.ClientName)
+            .ThenBy(contract => contract.Title)
             .ToList();
     }
 
