@@ -154,7 +154,7 @@
 
     private string ratePreviewLabel => ratePreview is null
         ? "Not loaded"
-        : $"{ratePreview.Rate:N4} ({(ratePreview.FromCache ? "Cache" : "Live API")})";
+        : $"{ratePreview.Rate:N2} ({(ratePreview.FromCache ? "Cache" : "Live API")})";
 
     protected override async Task OnParametersSetAsync()
     {

@@ -97,7 +97,7 @@
             }
             else
             {
-                <table class="data-table">
+                <table class="data-table service-requests-table">
                     <thead>
                         <tr>
                             <th>Request</th>
@@ -126,7 +126,8 @@
                                 <td data-label="Conversion">
                                     <div class="stack mono">
                                         <span>USD @request.CostUsd.ToString("N2")</span>
-                                        <span class="muted">x @request.ExchangeRate.ToString("N4") = ZAR @request.CostZar.ToString("N2")</span>
+                                        <span>ZAR @request.CostZar.ToString("N2")</span>
+                                        <span class="muted">@@ @request.ExchangeRate.ToString("N2")</span>
                                     </div>
                                 </td>
                                 <td data-label="Status">
