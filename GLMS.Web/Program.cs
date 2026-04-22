@@ -2,6 +2,7 @@ using GLMS.Web.Components;
 using GLMS.Web.Data;
 using GLMS.Web.Services;
 using GLMS.Web.Services.Currency;
+using GLMS.Web.Services.ServiceRequests;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(opts =>
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<DatabaseInitializationService>();
+builder.Services.AddScoped<IServiceRequestService, ServiceRequestService>();
 
 builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
 {
