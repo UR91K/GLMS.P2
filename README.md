@@ -2,6 +2,10 @@
 
 This prototype is built as a **modular monolith** (single deployable app) with clear internal layers.
 
+## Video
+
+https://youtu.be/lzY3MJwZ-Yw
+
 ## Patterns
 
 ### 1) State Pattern
