@@ -12,11 +12,14 @@ namespace GLMS.Web.Services.Contracts;
 /// </summary>
 public class ContractService : IContractService
 {
+    private const long MaxAgreementFileBytes = 10 * 1024 * 1024;
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+    private readonly IWebHostEnvironment _hostEnvironment;
 
-    public ContractService(IDbContextFactory<AppDbContext> dbContextFactory)
+    public ContractService(IDbContextFactory<AppDbContext> dbContextFactory, IWebHostEnvironment hostEnvironment)
     {
         _dbContextFactory = dbContextFactory;
+        _hostEnvironment = hostEnvironment;
     }
 
     public async Task<IReadOnlyList<ContractListItemDto>> GetListAsync(CancellationToken cancellationToken = default)
@@ -118,5 +121,99 @@ public class ContractService : IContractService
             ContractTransitionAction.Expire when currentStatus == ContractStatus.Expired => "This contract is already expired.",
             _ => $"Cannot {action.ToString().ToLowerInvariant()} a contract while it is {currentStatus}."
         };
+    }
+
+    public async Task<ContractAgreementUploadResultDto> UploadAgreementAsync(
+        int contractId,
+        string originalFileName,
+        string? contentType,
+        long fileSize,
+        Stream fileStream,
+        CancellationToken cancellationToken = default)
+    {
+        if (contractId <= 0)
+        {
+            throw new ArgumentException("A valid contract is required.", nameof(contractId));
+        }
+
+        if (fileStream is null)
+        {
+            throw new ArgumentNullException(nameof(fileStream));
+        }
+
+        if (string.IsNullOrWhiteSpace(originalFileName))
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "Select a PDF file to upload.", null, null);
+        }
+
+        if (fileSize <= 0)
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "The selected file is empty.", null, null);
+        }
+
+        if (fileSize > MaxAgreementFileBytes)
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, $"The PDF exceeds the 10 MB size limit.", null, null);
+        }
+
+        var extension = Path.GetExtension(originalFileName);
+        if (!string.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "Only .pdf files are allowed for signed agreements.", null, null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(contentType) &&
+            !string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "The uploaded file must have a PDF content type.", null, null);
+        }
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var contract = await dbContext.Contracts
+            .SingleOrDefaultAsync(item => item.ContractId == contractId, cancellationToken);
+
+        if (contract is null)
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "The selected contract no longer exists.", null, null);
+        }
+
+        var webRoot = _hostEnvironment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            throw new InvalidOperationException("Web root path is not configured.");
+        }
+
+        var uploadDirectory = Path.Combine(webRoot, "uploads", "contracts");
+        Directory.CreateDirectory(uploadDirectory);
+
+        var storedFileName = $"{Guid.NewGuid():N}.pdf";
+        var storedPath = Path.Combine(uploadDirectory, storedFileName);
+
+        await using (var targetStream = File.Create(storedPath))
+        {
+            await fileStream.CopyToAsync(targetStream, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(contract.PdfFileName))
+        {
+            var oldPath = Path.Combine(uploadDirectory, contract.PdfFileName);
+            if (File.Exists(oldPath))
+            {
+                File.Delete(oldPath);
+            }
+        }
+
+        contract.PdfFileName = storedFileName;
+        contract.PdfOriginalFileName = Path.GetFileName(originalFileName);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ContractAgreementUploadResultDto(
+            true,
+            contract.ContractId,
+            $"Signed agreement uploaded for CON-{contract.ContractId:D5}.",
+            contract.PdfFileName,
+            contract.PdfOriginalFileName);
     }
 }
