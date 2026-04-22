@@ -13,6 +13,7 @@ namespace GLMS.Web.Services.Contracts;
 public class ContractService : IContractService
 {
     private const long MaxAgreementFileBytes = 10 * 1024 * 1024;
+    private static readonly byte[] PdfHeader = "%PDF"u8.ToArray();
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly IWebHostEnvironment _hostEnvironment;
 
@@ -169,6 +170,14 @@ public class ContractService : IContractService
             return new ContractAgreementUploadResultDto(false, contractId, "The uploaded file must have a PDF content type.", null, null);
         }
 
+        await using var uploadBuffer = new MemoryStream();
+        await fileStream.CopyToAsync(uploadBuffer, cancellationToken);
+
+        if (!HasPdfMagicNumber(uploadBuffer))
+        {
+            return new ContractAgreementUploadResultDto(false, contractId, "The uploaded file content is not a valid PDF document.", null, null);
+        }
+
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var contract = await dbContext.Contracts
@@ -191,9 +200,10 @@ public class ContractService : IContractService
         var storedFileName = $"{Guid.NewGuid():N}.pdf";
         var storedPath = Path.Combine(uploadDirectory, storedFileName);
 
+        uploadBuffer.Position = 0;
         await using (var targetStream = File.Create(storedPath))
         {
-            await fileStream.CopyToAsync(targetStream, cancellationToken);
+            await uploadBuffer.CopyToAsync(targetStream, cancellationToken);
         }
 
         if (!string.IsNullOrWhiteSpace(contract.PdfFileName))
@@ -216,5 +226,20 @@ public class ContractService : IContractService
             $"Signed agreement uploaded for CON-{contract.ContractId:D5}.",
             contract.PdfFileName,
             contract.PdfOriginalFileName);
+    }
+
+    private static bool HasPdfMagicNumber(Stream stream)
+    {
+        if (stream is null)
+        {
+            return false;
+        }
+
+        stream.Position = 0;
+        Span<byte> header = stackalloc byte[4];
+        var bytesRead = stream.Read(header);
+        stream.Position = 0;
+
+        return bytesRead == PdfHeader.Length && header.SequenceEqual(PdfHeader);
     }
 }

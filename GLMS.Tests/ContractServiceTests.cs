@@ -112,6 +112,32 @@ public class ContractServiceTests
     }
 
     [Fact]
+    public async Task UploadAgreementAsync_RejectsPdfExtensionWithInvalidPdfHeader()
+    {
+        var (service, options, tempRoot) = CreateSut();
+        try
+        {
+            await SeedContractAsync(options, 305, ContractStatus.Active);
+
+            var badPdfPath = GetTestDataFilePath("bad.pdf");
+            await using var stream = File.OpenRead(badPdfPath);
+            var result = await service.UploadAgreementAsync(305, "bad.pdf", "application/pdf", stream.Length, stream);
+
+            Assert.False(result.Succeeded);
+            Assert.Contains("not a valid PDF", result.Message, StringComparison.OrdinalIgnoreCase);
+
+            await using var db = new AppDbContext(options);
+            var contract = await db.Contracts.SingleAsync(c => c.ContractId == 305);
+            Assert.Null(contract.PdfFileName);
+            Assert.Null(contract.PdfOriginalFileName);
+        }
+        finally
+        {
+            Cleanup(tempRoot);
+        }
+    }
+
+    [Fact]
     public async Task UploadAgreementAsync_AcceptsPdf_StoresUuidNamedFile_AndMetadata()
     {
         var (service, options, tempRoot) = CreateSut();
