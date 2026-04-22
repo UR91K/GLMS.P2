@@ -1,0 +1,135 @@
+
+@*
+note for clive: the stock drop-down menu component sucked, so I made my own!
+
+the <select> element is poorly designed, it does not allow for a label/title element to be set on 
+the button. the only solution is to either have the title be an item in the list, which is bad 
+for accessibility, or to make the title of the list be an invisible/disabled option, which is 
+also bad, because then there is a random empty option at the top of the 
+list, and the drop down button is blank.
+
+this component is a button that triggers a custom dropdown 
+list, which allows for proper styling, labeling and accessibility.
+
+the default option is -1, as i felt selecting the first option by default was a bit aggressive.
+*@
+<div class="glms-dropdown-menu @(isOpen ? "is-open" : string.Empty)" @onkeydown="HandleKeyDown">
+    @if (HasOptions)
+    {
+        <button class="dropdown-trigger field-control filter-control actions-select"
+                type="button"
+                @ref="triggerButton"
+                disabled="@Disabled"
+                @onclick="Toggle"
+                aria-haspopup="listbox"
+                aria-expanded="@isOpen"
+                aria-label="@AriaLabel">
+            <span>@Placeholder</span>
+        </button>
+
+        @if (isOpen)
+        {
+            <div class="dropdown-backdrop" @onclick="Close"></div>
+            <ul class="dropdown-list" role="listbox" aria-label="@AriaLabel">
+                @for (var index = 0; index < Options.Count; index++)
+                {
+                    var option = Options[index];
+                    var isActive = index == activeIndex;
+
+                    <li role="presentation">
+                        <button class="dropdown-option @(isActive ? "is-active" : string.Empty)"
+                                type="button"
+                                role="option"
+                            aria-selected="@(isActive ? "true" : "false")"
+                                tabindex="@(isActive ? 0 : -1)"
+                                @onfocus="() => activeIndex = index"
+                                @onclick="() => SelectOptionAsync(option)">
+                            @option.Label
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    }
+    else
+    {
+        <span class="field-control filter-control actions-select actions-select-empty muted"
+              aria-label="@DisabledAriaLabel">No actions</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Placeholder { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = string.Empty;
+    [Parameter] public string DisabledAriaLabel { get; set; } = "No actions available";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public IReadOnlyList<DropdownMenuOption> Options { get; set; } = [];
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private ElementReference triggerButton;
+    private bool isOpen;
+    private int activeIndex = -1;
+    private bool HasOptions => Options.Count > 0;
+
+    private void Toggle()
+    {
+        if (!HasOptions || Disabled)
+        {
+            return;
+        }
+
+        isOpen = !isOpen;
+        activeIndex = -1;
+    }
+
+    private void Close()
+    {
+        isOpen = false;
+        activeIndex = -1;
+    }
+
+    private async Task SelectOptionAsync(DropdownMenuOption option)
+    {
+        Close();
+        await InvokeAsync(StateHasChanged);
+        await triggerButton.FocusAsync();
+        await OnSelect.InvokeAsync(option.Value);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (!HasOptions || Disabled)
+        {
+            return;
+        }
+
+        switch (args.Key)
+        {
+            case "ArrowDown":
+                isOpen = true;
+                activeIndex = activeIndex < Options.Count - 1 ? activeIndex + 1 : 0;
+                break;
+            case "ArrowUp":
+                isOpen = true;
+                activeIndex = activeIndex > 0 ? activeIndex - 1 : Options.Count - 1;
+                break;
+            case "Enter":
+                if (!isOpen)
+                {
+                    isOpen = true;
+                    activeIndex = -1;
+                    break;
+                }
+
+                if (activeIndex >= 0)
+                {
+                    await SelectOptionAsync(Options[activeIndex]);
+                }
+                break;
+            case "Escape":
+            case "Tab":
+                Close();
+                break;
+        }
+    }
+}
