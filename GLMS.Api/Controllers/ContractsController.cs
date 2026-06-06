@@ -12,10 +12,12 @@ namespace GLMS.Api.Controllers;
 public class ContractsController : ControllerBase
 {
     private readonly IContractService _contractService;
+    private readonly IWebHostEnvironment _hostEnvironment;
 
-    public ContractsController(IContractService contractService)
+    public ContractsController(IContractService contractService, IWebHostEnvironment hostEnvironment)
     {
         _contractService = contractService;
+        _hostEnvironment = hostEnvironment;
     }
 
     [HttpGet]
@@ -58,6 +60,24 @@ public class ContractsController : ControllerBase
         if (!result.Succeeded && result.PreviousStatus == default && result.CurrentStatus == default)
             return NotFound(result);
         return result.Succeeded ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpGet("{id:int}/agreement")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadAgreement(int id, CancellationToken cancellationToken)
+    {
+        var contract = await _contractService.GetByIdAsync(id, cancellationToken);
+        if (contract is null || string.IsNullOrWhiteSpace(contract.PdfFileName))
+            return NotFound();
+
+        var root = _hostEnvironment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var path = Path.Combine(root, "uploads", "contracts", contract.PdfFileName);
+        if (!System.IO.File.Exists(path))
+            return NotFound();
+
+        return PhysicalFile(path, "application/pdf", contract.PdfOriginalFileName ?? contract.PdfFileName);
     }
 
     [HttpPost("{id:int}/agreement")]

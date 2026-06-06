@@ -18,6 +18,19 @@ public class ServiceRequestService : IServiceRequestService
         _currencyService = currencyService;
     }
 
+    public async Task<IReadOnlyList<ServiceRequestListItemDto>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await db.ServiceRequests
+            .AsNoTracking()
+            .OrderByDescending(sr => sr.CreatedAt)
+            .Select(sr => new ServiceRequestListItemDto(
+                sr.ServiceRequestId, sr.ContractId, sr.Description,
+                sr.CostUsd, sr.CostZar, sr.ExchangeRate, sr.Status, sr.CreatedAt,
+                sr.Contract.Title, sr.Contract.Client.Name))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ServiceRequestListItemDto>> GetByContractAsync(int contractId, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -27,7 +40,8 @@ public class ServiceRequestService : IServiceRequestService
             .OrderByDescending(sr => sr.CreatedAt)
             .Select(sr => new ServiceRequestListItemDto(
                 sr.ServiceRequestId, sr.ContractId, sr.Description,
-                sr.CostUsd, sr.CostZar, sr.ExchangeRate, sr.Status, sr.CreatedAt))
+                sr.CostUsd, sr.CostZar, sr.ExchangeRate, sr.Status, sr.CreatedAt,
+                sr.Contract.Title, sr.Contract.Client.Name))
             .ToListAsync(cancellationToken);
     }
 

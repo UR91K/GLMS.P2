@@ -20,4 +20,6 @@ public sealed record ServiceRequestListItemDto(
     decimal CostZar,
     decimal ExchangeRate,
     ServiceRequestStatus Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string ContractTitle,
+    string ClientName);

@@ -19,9 +19,11 @@ public class ServiceRequestsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<ServiceRequestListItemDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetByContract([FromQuery] int contractId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetByContract([FromQuery] int? contractId, CancellationToken cancellationToken)
     {
-        var requests = await _serviceRequestService.GetByContractAsync(contractId, cancellationToken);
+        var requests = contractId.HasValue
+            ? await _serviceRequestService.GetByContractAsync(contractId.Value, cancellationToken)
+            : await _serviceRequestService.GetAllAsync(cancellationToken);
         return Ok(requests);
     }
 
