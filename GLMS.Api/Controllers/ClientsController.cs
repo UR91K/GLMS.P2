@@ -1,3 +1,6 @@
+// references:
+// https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.controllerbase?view=aspnetcore-10.0
+
 using GLMS.Api.Services.Clients;
 using GLMS.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;

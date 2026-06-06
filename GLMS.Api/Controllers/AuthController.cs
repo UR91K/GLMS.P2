@@ -1,3 +1,11 @@
+// references:
+// https://www.rfc-editor.org/info/rfc7515/
+// https://learn.microsoft.com/en-us/dotnet/api/system.identitymodel.tokens.jwt.jwtsecuritytokenhandler?view=msal-web-dotnet-latest
+// https://learn.microsoft.com/en-us/dotnet/api/system.identitymodel.tokens.jwt.jwtsecuritytokenhandler.writetoken?view=msal-web-dotnet-latest
+// https://learn.microsoft.com/en-us/dotnet/api/system.identitymodel.tokens.symmetricsecuritykey?view=net-11.0-pp
+// https://learn.microsoft.com/en-us/dotnet/api/system.identitymodel.tokens.signingcredentials?view=netframework-4.8.1
+// https://learn.microsoft.com/en-us/dotnet/api/microsoft.identitymodel.tokens.symmetricsecuritykey?view=msal-web-dotnet-latest
+
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
