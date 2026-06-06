@@ -1,78 +1,57 @@
-using GLMS.Web.Data;
-using GLMS.Web.Models;
-using GLMS.Web.Models.Enums;
-using GLMS.Web.Services.Currency;
-using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using GLMS.Web.Auth;
 
 namespace GLMS.Web.Services.ServiceRequests;
 
-public class ServiceRequestService : IServiceRequestService
+public sealed class ServiceRequestService : IServiceRequestService
 {
-    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
-    private readonly ICurrencyService _currencyService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly GlmsAuthStateProvider _authProvider;
 
-    public ServiceRequestService(IDbContextFactory<AppDbContext> dbContextFactory, ICurrencyService currencyService)
+    public ServiceRequestService(IHttpClientFactory httpClientFactory, GlmsAuthStateProvider authProvider)
     {
-        _dbContextFactory = dbContextFactory;
-        _currencyService = currencyService;
+        _httpClientFactory = httpClientFactory;
+        _authProvider = authProvider;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = _httpClientFactory.CreateClient("GlmsApi");
+        if (_authProvider.Token is not null)
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", _authProvider.Token);
+        return client;
+    }
+
+    public async Task<IReadOnlyList<GLMS.Shared.DTOs.ServiceRequestListItemDto>> GetListAsync(CancellationToken cancellationToken = default)
+    {
+        var client = CreateAuthorizedClient();
+        return await client.GetFromJsonAsync<IReadOnlyList<GLMS.Shared.DTOs.ServiceRequestListItemDto>>("/api/servicerequests", cancellationToken) ?? [];
     }
 
     public async Task<ServiceRequestCreationResult> CreateAsync(ServiceRequestCreateCommand command, CancellationToken cancellationToken = default)
     {
-        if (command.ContractId <= 0)
+        var client = CreateAuthorizedClient();
+        var apiCommand = new GLMS.Shared.DTOs.ServiceRequestCreateCommand(command.ContractId, command.Description, command.CostUsd);
+        var response = await client.PostAsJsonAsync("/api/servicerequests", apiCommand, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
         {
-            throw new ArgumentException("A valid contract is required.", nameof(command));
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(errorBody) ? "Failed to create service request." : errorBody);
         }
 
-        if (string.IsNullOrWhiteSpace(command.Description))
-        {
-            throw new ArgumentException("Description is required.", nameof(command));
-        }
-
-        if (command.CostUsd <= 0m)
-        {
-            throw new ArgumentException("Cost in USD must be greater than zero.", nameof(command));
-        }
-
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var contract = await dbContext.Contracts
-            .SingleOrDefaultAsync(item => item.ContractId == command.ContractId, cancellationToken);
-
-        if (contract is null)
-        {
-            throw new InvalidOperationException("The selected contract no longer exists.");
-        }
-
-        if (!contract.CanRaiseServiceRequest())
-        {
-            throw new InvalidOperationException($"Service requests cannot be created while this contract is {contract.Status}.");
-        }
-
-        var rate = await _currencyService.GetRateAsync("USD", "ZAR", cancellationToken);
-        var roundedUsd = decimal.Round(command.CostUsd, 2, MidpointRounding.AwayFromZero);
-        var convertedZar = decimal.Round(roundedUsd * rate.Rate, 2, MidpointRounding.AwayFromZero);
-
-        var request = new ServiceRequest
-        {
-            ContractId = command.ContractId,
-            Description = command.Description.Trim(),
-            CostUsd = roundedUsd,
-            ExchangeRate = rate.Rate,
-            CostZar = convertedZar,
-            Status = ServiceRequestStatus.Open,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await dbContext.ServiceRequests.AddAsync(request, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<GLMS.Shared.DTOs.ServiceRequestCreationResult>(cancellationToken)
+            ?? throw new InvalidOperationException("Server returned an empty response.");
 
         return new ServiceRequestCreationResult(
-            request.ServiceRequestId,
-            request.ExchangeRate,
-            request.CostUsd,
-            request.CostZar,
-            request.CreatedAt,
-            rate.FromCache);
+            result.ServiceRequestId,
+            result.ExchangeRate,
+            result.CostUsd,
+            result.CostZar,
+            result.CreatedAtUtc,
+            result.ExchangeRateFromCache);
     }
 }

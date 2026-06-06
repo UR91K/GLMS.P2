@@ -4,6 +4,7 @@
 @rendermode InteractiveServer
 @inject GLMS.Web.Services.Clients.IClientService ClientService
 @inject NavigationManager NavigationManager
+@using GLMS.Shared.DTOs
 
 <PageTitle>@PageTitleText</PageTitle>
 
@@ -170,7 +171,7 @@
 
         try
         {
-            await ClientService.SaveAsync(new GLMS.Web.DTOs.ClientUpsertCommand(
+            await ClientService.SaveAsync(new ClientUpsertCommand(
                 IsEditMode ? ClientId : null,
                 formModel.Name,
                 formModel.Email,

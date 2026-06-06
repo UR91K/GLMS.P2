@@ -200,7 +200,7 @@
                 contract.ContractId,
                 contract.Title,
                 contract.ClientName,
-                contract.Status))
+                (ContractStatus)(int)contract.Status))
             .OrderBy(contract => contract.Status == ContractStatus.Active ? 0 : 1)
             .ThenBy(contract => contract.ClientName)
             .ThenBy(contract => contract.Title)

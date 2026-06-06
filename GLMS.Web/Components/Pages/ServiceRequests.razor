@@ -226,7 +226,7 @@
                 request.CostUsd,
                 request.ExchangeRate,
                 request.CostZar,
-                request.Status,
+                (ServiceRequestStatus)(int)request.Status,
                 DateTime.SpecifyKind(request.CreatedAt, DateTimeKind.Utc),
                 request.ContractTitle,
                 request.ClientName))

@@ -1,105 +1,67 @@
-using GLMS.Web.Data;
-using GLMS.Web.DTOs;
-using GLMS.Web.Models;
-using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using GLMS.Shared.DTOs;
+using GLMS.Web.Auth;
 
 namespace GLMS.Web.Services.Clients;
 
-/// <summary>
-/// service for managing clients
-/// 
-/// moved out of the page for separation of concerns!
-/// </summary>
-public class ClientService : IClientService
+public sealed class ClientService : IClientService
 {
-    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly GlmsAuthStateProvider _authProvider;
 
-    public ClientService(IDbContextFactory<AppDbContext> dbContextFactory)
+    public ClientService(IHttpClientFactory httpClientFactory, GlmsAuthStateProvider authProvider)
     {
-        _dbContextFactory = dbContextFactory;
+        _httpClientFactory = httpClientFactory;
+        _authProvider = authProvider;
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
+        var client = _httpClientFactory.CreateClient("GlmsApi");
+        if (_authProvider.Token is not null)
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", _authProvider.Token);
+        return client;
     }
 
     public async Task<IReadOnlyList<ClientListItemDto>> GetListAsync(CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        return await dbContext.Clients
-            .AsNoTracking()
-            .OrderBy(client => client.Name)
-            .Select(client => new ClientListItemDto(
-                client.ClientId,
-                client.Name,
-                client.Email,
-                client.Phone,
-                client.Region,
-                client.Contracts.Count()))
-            .ToListAsync(cancellationToken);
+        var client = CreateAuthorizedClient();
+        return await client.GetFromJsonAsync<IReadOnlyList<ClientListItemDto>>("/api/clients", cancellationToken) ?? [];
     }
 
     public async Task<ClientEditorDto?> GetEditorAsync(int clientId, CancellationToken cancellationToken = default)
     {
-        if (clientId <= 0)
-        {
+        var client = CreateAuthorizedClient();
+        var response = await client.GetAsync($"/api/clients/{clientId}", cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-        }
 
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        return await dbContext.Clients
-            .AsNoTracking()
-            .Where(item => item.ClientId == clientId)
-            .Select(item => new ClientEditorDto(
-                item.ClientId,
-                item.Name,
-                item.Email,
-                item.Phone,
-                item.Region,
-                item.Contracts.Count()))
-            .SingleOrDefaultAsync(cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ClientEditorDto>(cancellationToken);
     }
 
     public async Task<int> SaveAsync(ClientUpsertCommand command, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(command.Name))
-        {
-            throw new ArgumentException("Client name is required.", nameof(command));
-        }
+        var client = CreateAuthorizedClient();
 
-        if (string.IsNullOrWhiteSpace(command.Email))
+        if (command.ClientId is null)
         {
-            throw new ArgumentException("Email address is required.", nameof(command));
-        }
-
-        if (string.IsNullOrWhiteSpace(command.Phone))
-        {
-            throw new ArgumentException("Phone number is required.", nameof(command));
-        }
-
-        if (string.IsNullOrWhiteSpace(command.Region))
-        {
-            throw new ArgumentException("Region is required.", nameof(command));
-        }
-
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        Client client;
-        if (command.ClientId.HasValue)
-        {
-            client = await dbContext.Clients.SingleOrDefaultAsync(item => item.ClientId == command.ClientId.Value, cancellationToken)
-                ?? throw new InvalidOperationException("The selected client no longer exists.");
+            var response = await client.PostAsJsonAsync("/api/clients", command, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<int>(cancellationToken);
         }
         else
         {
-            client = new Client();
-            await dbContext.Clients.AddAsync(client, cancellationToken);
+            var response = await client.PutAsJsonAsync($"/api/clients/{command.ClientId.Value}", command, cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                throw new InvalidOperationException("The selected client no longer exists.");
+
+            response.EnsureSuccessStatusCode();
+            return command.ClientId.Value;
         }
-
-        client.Name = command.Name.Trim();
-        client.Email = command.Email.Trim();
-        client.Phone = command.Phone.Trim();
-        client.Region = command.Region.Trim();
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return client.ClientId;
     }
 }

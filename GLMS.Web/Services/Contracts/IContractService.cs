@@ -1,4 +1,5 @@
-using GLMS.Web.DTOs;
+using GLMS.Shared.DTOs;
+using GLMS.Shared.Enums;
 
 namespace GLMS.Web.Services.Contracts;
 

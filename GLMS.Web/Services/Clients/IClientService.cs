@@ -1,4 +1,4 @@
-using GLMS.Web.DTOs;
+using GLMS.Shared.DTOs;
 
 namespace GLMS.Web.Services.Clients;
 

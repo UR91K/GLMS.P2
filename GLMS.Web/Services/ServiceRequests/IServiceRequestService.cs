@@ -1,9 +1,8 @@
-using GLMS.Web.Models;
-
 namespace GLMS.Web.Services.ServiceRequests;
 
 public interface IServiceRequestService
 {
+    Task<IReadOnlyList<GLMS.Shared.DTOs.ServiceRequestListItemDto>> GetListAsync(CancellationToken cancellationToken = default);
     Task<ServiceRequestCreationResult> CreateAsync(ServiceRequestCreateCommand command, CancellationToken cancellationToken = default);
 }
 
