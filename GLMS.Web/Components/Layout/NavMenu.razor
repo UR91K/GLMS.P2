@@ -28,6 +28,27 @@
                 <span class="nav-link-meta">Currency conversions and workflow</span>
             </NavLink>
         </nav>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-footer">
+                    <button class="button button-secondary" type="button" @onclick="HandleLogoutAsync">
+                        Sign out
+                    </button>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </div>
 </div>
+
+@code {
+    [Inject] private GlmsAuthStateProvider AuthProvider { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private async Task HandleLogoutAsync()
+    {
+        await AuthProvider.LogoutAsync();
+        Nav.NavigateTo("/login");
+    }
+}
 

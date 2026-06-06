@@ -1,4 +1,5 @@
 @page "/service-requests/new"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject ICurrencyService CurrencyService

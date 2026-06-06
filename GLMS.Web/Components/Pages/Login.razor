@@ -1,0 +1,87 @@
+@page "/login"
+@rendermode InteractiveServer
+
+<PageTitle>Sign in</PageTitle>
+
+<div class="page-shell login-shell">
+    <section class="surface-card login-card">
+        <div class="login-header">
+            <p class="eyebrow">GLMS</p>
+            <h1 class="page-title">Sign in</h1>
+            <p class="page-subtitle">Global Logistics Management System</p>
+        </div>
+
+        <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+            <div class="field-group">
+                <label class="field-label" for="username">Username</label>
+                <InputText id="username" class="field-control" @bind-Value="_model.Username"
+                           autocomplete="username" placeholder="admin" />
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="password">Password</label>
+                <InputText id="password" type="password" class="field-control"
+                           @bind-Value="_model.Password" autocomplete="current-password" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <div class="validation-block">
+                    <p class="validation-list">@_errorMessage</p>
+                </div>
+            }
+
+            <button class="button button-primary login-submit" type="submit" disabled="@_isBusy">
+                @(_isBusy ? "Signing in…" : "Sign in")
+            </button>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+    [Inject] private GlmsAuthStateProvider AuthProvider { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private readonly LoginFormModel _model = new();
+    private string? _errorMessage;
+    private bool _isBusy;
+
+    private async Task HandleLoginAsync()
+    {
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("GlmsApi");
+            var response = await client.PostAsJsonAsync("/api/auth/login",
+                new LoginRequest(_model.Username, _model.Password));
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _errorMessage = "Invalid credentials. Please try again.";
+                return;
+            }
+
+            response.EnsureSuccessStatusCode();
+            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            await AuthProvider.LoginAsync(loginResponse!);
+            Nav.NavigateTo("/contracts");
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to connect to the server. Please ensure the API is running.";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private sealed class LoginFormModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

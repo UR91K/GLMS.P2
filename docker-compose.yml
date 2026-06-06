@@ -44,6 +44,7 @@ services:
       ASPNETCORE_ENVIRONMENT: "Production"
       ASPNETCORE_URLS: "http://+:8080"
       ApiBaseUrl: "http://glms-backend-api:8080"
+      ApiPublicBaseUrl: "http://localhost:5001"
     ports:
       - "5000:8080"
     depends_on:

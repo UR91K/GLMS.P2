@@ -1,5 +1,6 @@
 @page "/clients/new"
 @page "/clients/{ClientId:int}/edit"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @inject GLMS.Web.Services.Clients.IClientService ClientService
 @inject NavigationManager NavigationManager
