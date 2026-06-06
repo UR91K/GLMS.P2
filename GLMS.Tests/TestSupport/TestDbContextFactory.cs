@@ -1,4 +1,4 @@
-using GLMS.Web.Data;
+using GLMS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace GLMS.Tests.TestSupport;

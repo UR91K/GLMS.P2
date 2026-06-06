@@ -1,9 +1,10 @@
 using GLMS.Tests.Mocks;
 using GLMS.Tests.TestSupport;
-using GLMS.Web.Data;
-using GLMS.Web.Models;
-using GLMS.Web.Models.Enums;
-using GLMS.Web.Services.ServiceRequests;
+using GLMS.Api.Data;
+using GLMS.Api.Models;
+using GLMS.Api.Services.ServiceRequests;
+using GLMS.Shared.DTOs;
+using GLMS.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace GLMS.Tests;

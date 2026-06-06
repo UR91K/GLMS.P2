@@ -1,9 +1,9 @@
 using GLMS.Tests.TestSupport;
-using GLMS.Web.Data;
-using GLMS.Web.DTOs;
-using GLMS.Web.Models;
-using GLMS.Web.Models.Enums;
-using GLMS.Web.Services.Contracts;
+using GLMS.Api.Data;
+using GLMS.Api.Models;
+using GLMS.Api.Services.Contracts;
+using GLMS.Shared.DTOs;
+using GLMS.Shared.Enums;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Moq;
