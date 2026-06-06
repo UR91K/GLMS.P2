@@ -1,22 +1,16 @@
 using GLMS.Web.Auth;
 using GLMS.Web.Components;
-using GLMS.Web.Data;
 using GLMS.Web.Services.Clients;
 using GLMS.Web.Services.Contracts;
-using GLMS.Web.Services;
 using GLMS.Web.Services.Currency;
 using GLMS.Web.Services.ServiceRequests;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-builder.Services.AddDbContextFactory<AppDbContext>(opts =>
-    opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddHttpClient("GlmsApi", client =>
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5001"));
@@ -28,7 +22,6 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddMemoryCache();
-builder.Services.AddScoped<DatabaseInitializationService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IServiceRequestService, ServiceRequestService>();
@@ -49,12 +42,6 @@ builder.Services.AddHttpClient<ExchangeRateApiService>(client =>
 builder.Services.AddScoped<ICurrencyService, CurrencyServiceProxy>();
 
 var app = builder.Build();
-
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var databaseInitializationService = scope.ServiceProvider.GetRequiredService<DatabaseInitializationService>();
-    await databaseInitializationService.InitializeAsync();
-}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

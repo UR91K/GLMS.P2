@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using GLMS.Shared.DTOs;
 using GLMS.Web.Auth;
 
 namespace GLMS.Web.Services.ServiceRequests;
@@ -24,17 +25,16 @@ public sealed class ServiceRequestService : IServiceRequestService
         return client;
     }
 
-    public async Task<IReadOnlyList<GLMS.Shared.DTOs.ServiceRequestListItemDto>> GetListAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ServiceRequestListItemDto>> GetListAsync(CancellationToken cancellationToken = default)
     {
         var client = CreateAuthorizedClient();
-        return await client.GetFromJsonAsync<IReadOnlyList<GLMS.Shared.DTOs.ServiceRequestListItemDto>>("/api/servicerequests", cancellationToken) ?? [];
+        return await client.GetFromJsonAsync<IReadOnlyList<ServiceRequestListItemDto>>("/api/servicerequests", cancellationToken) ?? [];
     }
 
     public async Task<ServiceRequestCreationResult> CreateAsync(ServiceRequestCreateCommand command, CancellationToken cancellationToken = default)
     {
         var client = CreateAuthorizedClient();
-        var apiCommand = new GLMS.Shared.DTOs.ServiceRequestCreateCommand(command.ContractId, command.Description, command.CostUsd);
-        var response = await client.PostAsJsonAsync("/api/servicerequests", apiCommand, cancellationToken);
+        var response = await client.PostAsJsonAsync("/api/servicerequests", command, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -43,15 +43,7 @@ public sealed class ServiceRequestService : IServiceRequestService
                 string.IsNullOrWhiteSpace(errorBody) ? "Failed to create service request." : errorBody);
         }
 
-        var result = await response.Content.ReadFromJsonAsync<GLMS.Shared.DTOs.ServiceRequestCreationResult>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync<ServiceRequestCreationResult>(cancellationToken)
             ?? throw new InvalidOperationException("Server returned an empty response.");
-
-        return new ServiceRequestCreationResult(
-            result.ServiceRequestId,
-            result.ExchangeRate,
-            result.CostUsd,
-            result.CostZar,
-            result.CreatedAtUtc,
-            result.ExchangeRateFromCache);
     }
 }

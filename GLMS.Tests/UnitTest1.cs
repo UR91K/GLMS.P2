@@ -11,7 +11,7 @@ public class UnitTest1
         var mockService = new MockExchangeRateService();
         mockService.SetRate("USD", "ZAR", 18.75m);
 
-        var result = await mockService.GetRateAsync("usd", "zar");
+        var result = await ((ICurrencyService)mockService).GetRateAsync("usd", "zar");
 
         Assert.Equal(18.75m, result.Rate);
         Assert.False(result.FromCache);
@@ -24,7 +24,7 @@ public class UnitTest1
         var mockService = new MockExchangeRateService();
 
         var ex = await Assert.ThrowsAsync<CurrencyServiceException>(() =>
-            mockService.GetRateAsync("USD", "ZAR"));
+            ((ICurrencyService)mockService).GetRateAsync("USD", "ZAR"));
 
         Assert.Contains("No mock rate configured", ex.Message);
         Assert.Equal(1, mockService.CallCount);

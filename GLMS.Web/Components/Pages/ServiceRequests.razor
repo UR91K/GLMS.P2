@@ -1,8 +1,8 @@
 @page "/service-requests"
 @attribute [Authorize]
 @rendermode InteractiveServer
-@inject IDbContextFactory<AppDbContext> DbContextFactory
-@using Microsoft.AspNetCore.Components
+@using GLMS.Web.Services.ServiceRequests
+@inject IServiceRequestService ServiceRequestService
 
 <PageTitle>Service Requests</PageTitle>
 
@@ -200,36 +200,19 @@
     {
         isLoading = true;
 
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var items = await ServiceRequestService.GetListAsync();
 
-        var requestRows = await dbContext.ServiceRequests
-            .AsNoTracking()
-            .OrderByDescending(request => request.CreatedAt)
-            .Select(request => new
-            {
-                request.ServiceRequestId,
-                request.Description,
-                request.CostUsd,
-                request.ExchangeRate,
-                request.CostZar,
-                request.Status,
-                request.CreatedAt,
-                ContractTitle = request.Contract.Title,
-                ClientName = request.Contract.Client.Name
-            })
-            .ToListAsync();
-
-        serviceRequests = requestRows
-            .Select(request => new ServiceRequestListItem(
-                request.ServiceRequestId,
-                request.Description,
-                request.CostUsd,
-                request.ExchangeRate,
-                request.CostZar,
-                (ServiceRequestStatus)(int)request.Status,
-                DateTime.SpecifyKind(request.CreatedAt, DateTimeKind.Utc),
-                request.ContractTitle,
-                request.ClientName))
+        serviceRequests = items
+            .Select(r => new ServiceRequestListItem(
+                r.ServiceRequestId,
+                r.Description,
+                r.CostUsd,
+                r.ExchangeRate,
+                r.CostZar,
+                r.Status,
+                DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc),
+                r.ContractTitle,
+                r.ClientName))
             .ToList();
 
         isLoading = false;

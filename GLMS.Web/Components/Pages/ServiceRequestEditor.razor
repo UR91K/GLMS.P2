@@ -1,13 +1,12 @@
 @page "/service-requests/new"
 @attribute [Authorize]
 @rendermode InteractiveServer
-@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject GLMS.Web.Services.Contracts.IContractService ContractService
 @inject ICurrencyService CurrencyService
 @inject IServiceRequestService ServiceRequestService
 @inject NavigationManager NavigationManager
 @using Microsoft.AspNetCore.Components
 @using GLMS.Web.Services.Currency
-@using GLMS.Web.DTOs
 @using GLMS.Web.Services.ServiceRequests
 
 <PageTitle>Create Service Request</PageTitle>
@@ -138,7 +137,7 @@
 
     private readonly ServiceRequestCreateFormModel formModel = new();
     private List<ContractOption> contractOptions = [];
-    private CurrencyRateDto? ratePreview;
+    private GLMS.Web.DTOs.CurrencyRateDto? ratePreview;
     private CancellationTokenSource? ratePreviewDebounceCts;
 
     private bool isLoading = true;
@@ -176,31 +175,18 @@
 
     private async Task LoadContractOptionsAsync()
     {
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
-        var contractRows = await dbContext.Contracts
-            .AsNoTracking()
-            .OrderBy(contract => contract.Client.Name)
-            .ThenBy(contract => contract.Title)
-            .Select(contract => new
-            {
-                contract.ContractId,
-                contract.Title,
-                ClientName = contract.Client.Name,
-                contract.Status
-            })
-            .ToListAsync();
+        var items = await ContractService.GetListAsync();
 
         // nielsen heuristic #6: recognition over recall
-        // show available contracts first, then the unavailable ones, 
-        // but keep the full list visible so users can see all their options and 
-        // understand why some are unavailable 
-        contractOptions = contractRows
+        // show available contracts first, then the unavailable ones,
+        // but keep the full list visible so users can see all their options and
+        // understand why some are unavailable
+        contractOptions = items
             .Select(contract => new ContractOption(
                 contract.ContractId,
                 contract.Title,
                 contract.ClientName,
-                (ContractStatus)(int)contract.Status))
+                contract.Status))
             .OrderBy(contract => contract.Status == ContractStatus.Active ? 0 : 1)
             .ThenBy(contract => contract.ClientName)
             .ThenBy(contract => contract.Title)

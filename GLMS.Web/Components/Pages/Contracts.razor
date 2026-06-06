@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 @inject GLMS.Web.Services.Contracts.IContractService ContractService
+@inject IConfiguration Configuration
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
 
@@ -275,6 +276,7 @@
 }
 
 @code {
+    private string _apiPublicBaseUrl = string.Empty;
     private List<ContractListItem> contracts = [];
     private string searchTerm = string.Empty;
     private string selectedStatusFilter = string.Empty;
@@ -316,6 +318,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _apiPublicBaseUrl = Configuration["ApiPublicBaseUrl"] ?? "http://localhost:5001";
         await LoadContractsAsync();
     }
 
@@ -568,8 +571,8 @@
         return $"Expires in {days} day{(days == 1 ? string.Empty : "s")}";
     }
 
-    private static string GetAgreementDownloadUrl(ContractListItem contract) =>
-        $"/uploads/contracts/{Uri.EscapeDataString(contract.PdfFileName!)}";
+    private string GetAgreementDownloadUrl(ContractListItem contract) =>
+        $"{_apiPublicBaseUrl}/api/contracts/{contract.ContractId}/agreement";
 
     private sealed record ContractListItem(
         int ContractId,
