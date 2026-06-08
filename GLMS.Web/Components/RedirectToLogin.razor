@@ -3,6 +3,7 @@
 @code {
     protected override void OnInitialized()
     {
-        Nav.NavigateTo("/login");
+        if (RendererInfo.IsInteractive)
+            Nav.NavigateTo("/login");
     }
 }

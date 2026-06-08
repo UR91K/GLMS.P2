@@ -1,0 +1,40 @@
+.login-shell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+.login-card {
+    width: min(100%, 420px);
+    padding: 2rem;
+    display: grid;
+    gap: 1.5rem;
+}
+
+.login-card ::deep form {
+    display: grid;
+    gap: 1rem;
+}
+
+.login-header {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.field-group {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.field-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.login-submit {
+    width: 100%;
+    margin-top: 0.25rem;
+}

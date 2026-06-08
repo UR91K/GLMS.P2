@@ -16,7 +16,15 @@
         </div>
     </header>
 
-    @if (isLoading)
+    @if (apiError is not null)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Unable to load clients</h2>
+            <p class="empty-state-copy">@apiError</p>
+            <button class="button button-secondary" type="button" @onclick="LoadClientsAsync">Try again</button>
+        </section>
+    }
+    else if (isLoading)
     {
         <section class="surface-card empty-state">
             <h2 class="empty-state-title">Loading clients</h2>
@@ -142,6 +150,7 @@
     private string searchTerm = string.Empty;
     private string selectedRegionFilter = string.Empty;
     private bool isLoading = true;
+    private string? apiError;
 
     private IReadOnlyList<string> regionFilters => clients
         .Select(client => client.Region)
@@ -172,20 +181,30 @@
     private async Task LoadClientsAsync()
     {
         isLoading = true;
+        apiError = null;
 
-        var clientRows = await ClientService.GetListAsync();
+        try
+        {
+            var clientRows = await ClientService.GetListAsync();
 
-        clients = clientRows
-            .Select(client => new ClientListItem(
-                client.ClientId,
-                client.Name,
-                client.Email,
-                client.Phone,
-                client.Region,
-                client.ContractCount))
-            .ToList();
-
-        isLoading = false;
+            clients = clientRows
+                .Select(client => new ClientListItem(
+                    client.ClientId,
+                    client.Name,
+                    client.Email,
+                    client.Phone,
+                    client.Region,
+                    client.ContractCount))
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            apiError = "Could not reach the API. Make sure the GLMS.Api project is running.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void ClearFilters()

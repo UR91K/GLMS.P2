@@ -18,7 +18,15 @@
         </div>
     </header>
 
-    @if (isLoading)
+    @if (apiError is not null)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Unable to load contracts</h2>
+            <p class="empty-state-copy">@apiError</p>
+            <button class="button button-secondary" type="button" @onclick="LoadContractsAsync">Try again</button>
+        </section>
+    }
+    else if (isLoading)
     {
         <section class="surface-card empty-state">
             <h2 class="empty-state-title">Loading contracts</h2>
@@ -283,6 +291,7 @@
     private DateTime? startDateFrom;
     private DateTime? endDateTo;
     private bool isLoading = true;
+    private string? apiError;
     private bool isTransitioning;
     private string? transitionMessage;
     private bool transitionFailed;
@@ -324,26 +333,36 @@
     private async Task LoadContractsAsync()
     {
         isLoading = true;
+        apiError = null;
         CancelConfirm();
 
-        var contractRows = await ContractService.GetListAsync();
+        try
+        {
+            var contractRows = await ContractService.GetListAsync();
 
-        contracts = contractRows
-            .Select(contract => new ContractListItem(
-                contract.ContractId,
-                contract.ClientId,
-                contract.ClientName,
-                contract.Title,
-                contract.ServiceLevel,
-                contract.StartDate,
-                contract.EndDate,
-                contract.Status,
-                contract.ServiceRequestCount,
-                contract.PdfFileName,
-                contract.PdfOriginalFileName))
-            .ToList();
-
-        isLoading = false;
+            contracts = contractRows
+                .Select(contract => new ContractListItem(
+                    contract.ContractId,
+                    contract.ClientId,
+                    contract.ClientName,
+                    contract.Title,
+                    contract.ServiceLevel,
+                    contract.StartDate,
+                    contract.EndDate,
+                    contract.Status,
+                    contract.ServiceRequestCount,
+                    contract.PdfFileName,
+                    contract.PdfOriginalFileName))
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            apiError = "Could not reach the API. Make sure the GLMS.Api project is running.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void ClearFilters()

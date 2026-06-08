@@ -19,6 +19,9 @@ builder.Services.AddHttpClient("GlmsApi", client =>
 builder.Services.AddScoped<GlmsAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<GlmsAuthStateProvider>());
+// Blazor Server requires an authentication scheme to be registered even though the Web project
+// doesnt validate tokens itself, the API handles that. NoOpAuthHandler is a do nothing scheme
+// to satisfy the middleware; actual auth state comes from GlmsAuthStateProvider above.
 builder.Services.AddAuthentication("NoOp")
     .AddScheme<AuthenticationSchemeOptions, NoOpAuthHandler>("NoOp", _ => { });
 builder.Services.AddAuthorizationCore();

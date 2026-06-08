@@ -5,6 +5,7 @@
 @code {
 	protected override void OnInitialized()
 	{
-		Navigation.NavigateTo("/clients", replace: true);
+		if (RendererInfo.IsInteractive)
+			Navigation.NavigateTo("/clients", replace: true);
 	}
 }

@@ -16,7 +16,15 @@
         </div>
     </header>
 
-    @if (isLoading)
+    @if (apiError is not null)
+    {
+        <section class="surface-card empty-state">
+            <h2 class="empty-state-title">Unable to load service requests</h2>
+            <p class="empty-state-copy">@apiError</p>
+            <button class="button button-secondary" type="button" @onclick="LoadWorkspaceAsync">Try again</button>
+        </section>
+    }
+    else if (isLoading)
     {
         <section class="surface-card empty-state">
             <h2 class="empty-state-title">Loading service requests</h2>
@@ -155,6 +163,7 @@
     private string selectedStatusFilter = string.Empty;
     
     private bool isLoading = true;
+    private string? apiError;
     
     private string? globalSuccessMessage;
     private int? displayedCreatedServiceRequestId;
@@ -198,23 +207,33 @@
     private async Task LoadWorkspaceAsync()
     {
         isLoading = true;
+        apiError = null;
 
-        var items = await ServiceRequestService.GetListAsync();
+        try
+        {
+            var items = await ServiceRequestService.GetListAsync();
 
-        serviceRequests = items
-            .Select(r => new ServiceRequestListItem(
-                r.ServiceRequestId,
-                r.Description,
-                r.CostUsd,
-                r.ExchangeRate,
-                r.CostZar,
-                r.Status,
-                DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc),
-                r.ContractTitle,
-                r.ClientName))
-            .ToList();
-
-        isLoading = false;
+            serviceRequests = items
+                .Select(r => new ServiceRequestListItem(
+                    r.ServiceRequestId,
+                    r.Description,
+                    r.CostUsd,
+                    r.ExchangeRate,
+                    r.CostZar,
+                    r.Status,
+                    DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc),
+                    r.ContractTitle,
+                    r.ClientName))
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            apiError = "Could not reach the API. Make sure the GLMS.Api project is running.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void ClearFilters()

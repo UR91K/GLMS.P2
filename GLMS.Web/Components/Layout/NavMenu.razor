@@ -31,8 +31,8 @@
 
         <AuthorizeView>
             <Authorized>
-                <div class="nav-footer">
-                    <button class="button button-secondary" type="button" @onclick="HandleLogoutAsync">
+                <div class="nav-panel">
+                    <button class="button button-secondary" type="button" @onclick="HandleLogoutAsync" @onclick:stopPropagation>
                         Sign out
                     </button>
                 </div>

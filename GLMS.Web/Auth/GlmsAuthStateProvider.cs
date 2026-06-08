@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using GLMS.Shared.DTOs;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -57,7 +58,13 @@ public class GlmsAuthStateProvider : AuthenticationStateProvider
         }
         catch (InvalidOperationException)
         {
-            // do nothing - called during SSR before the circuit is ready... stay anonymous.
+            // called before the circuit is ready (SSR/prerendering),. JS unavailable.
+            // do NOT mark initialized so the interactive circuit will reread the token.
+            return _anonymous;
+        }
+        catch (CryptographicException)
+        {
+            // stale data protection keys, token cant be decrypted. stay anonymous.
         }
 
         _initialized = true;
