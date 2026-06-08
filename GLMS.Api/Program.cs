@@ -13,11 +13,17 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // databases
+
+// "Data Source=..." is SQLite syntax. anything else (like a SQL Server connection string) goes
+// to SQL Server. In development, appsettings.json sets DefaultConnection to "Data Source=glms.db"
+
+// in docker, the environment variable overrides it with the SQL Server connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useSqlite = string.IsNullOrWhiteSpace(connectionString) || connectionString.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase);
 
 if (useSqlite)
 {
+    // fallback to glms.db in the working directory if no connection string is configured at all
     var sqliteConn = string.IsNullOrWhiteSpace(connectionString) ? "Data Source=glms.db" : connectionString;
     builder.Services.AddDbContextFactory<AppDbContext>(opts =>
         opts.UseSqlite(sqliteConn));
@@ -71,6 +77,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // controllers + swagger
+// reference:
+// https://duendesoftware.com/blog/20251126-securing-openapi-and-swagger-ui-with-oauth-in-dotnet-10
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
