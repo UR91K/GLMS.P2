@@ -1,6 +1,25 @@
 # GLMS Architecture Patterns (Part 2)
 
-This prototype is built as a **modular monolith** (single deployable app) with clear internal layers.
+Final prototype, converted to SOA architecture.
+
+GLMS.Api contains the backend API. New controllers were introduced to expose business logic in services over API endpoints. 
+
+## Running the Project
+
+```bash
+docker-compose up --build
+```
+(This is how I use docker, not with GUI)
+
+Web UI: http://localhost:5000
+REST API: http://localhost:5001
+Swagger: http://localhost:5001/swagger
+
+Default credentials: admin / Admin@1234
+
+### Local Dev (no Docker)
+
+If ran locally, the app uses SQLite (`glms.db`) and seeds data automatically on first run.
 
 ## Video
 
@@ -53,10 +72,3 @@ DTOs are used to shape data passed between service layer and UI
 
 examples: `ContractListItemDto`, `ContractTransitionResultDto`, `ContractAgreementUploadResultDto`, `CurrencyRateDto`
 
-## Quick Structure
-
-- `GLMS.Web/Patterns/State` -> State pattern
-- `GLMS.Web/Patterns/Observer` -> Observer pattern
-- `GLMS.Web/Services` -> Service layer + proxy usage
-- `GLMS.Web/DTOs` -> DTO contracts
-- `GLMS.Web/Program.cs` -> DI configuration
