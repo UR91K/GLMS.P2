@@ -8,7 +8,7 @@ COPY ["GLMS.Api/GLMS.Api.csproj", "GLMS.Api/"]
 COPY ["GLMS.Shared/GLMS.Shared.csproj", "GLMS.Shared/"]
 RUN dotnet restore "GLMS.Api/GLMS.Api.csproj"
 COPY . .
-RUN dotnet publish "GLMS.Api/GLMS.Api.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet publish "GLMS.Api/GLMS.Api.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
