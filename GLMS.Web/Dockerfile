@@ -8,7 +8,7 @@ COPY ["GLMS.Web/GLMS.Web.csproj", "GLMS.Web/"]
 COPY ["GLMS.Shared/GLMS.Shared.csproj", "GLMS.Shared/"]
 RUN dotnet restore "GLMS.Web/GLMS.Web.csproj"
 COPY . .
-RUN dotnet publish "GLMS.Web/GLMS.Web.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet publish "GLMS.Web/GLMS.Web.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
