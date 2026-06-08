@@ -21,6 +21,8 @@ Default credentials: admin / Admin@1234
 
 If ran locally, the app uses SQLite (`glms.db`) and seeds data automatically on first run.
 
+Use local for Swagger to work
+
 ## Video
 
 https://youtu.be/lzY3MJwZ-Yw
