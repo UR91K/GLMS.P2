@@ -1,5 +1,6 @@
 using GLMS.Web.Auth;
 using GLMS.Web.Components;
+using Microsoft.AspNetCore.Authentication;
 using GLMS.Web.Services.Clients;
 using GLMS.Web.Services.Contracts;
 using GLMS.Web.Services.Currency;
@@ -18,6 +19,8 @@ builder.Services.AddHttpClient("GlmsApi", client =>
 builder.Services.AddScoped<GlmsAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<GlmsAuthStateProvider>());
+builder.Services.AddAuthentication("NoOp")
+    .AddScheme<AuthenticationSchemeOptions, NoOpAuthHandler>("NoOp", _ => { });
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 
@@ -51,7 +54,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 

@@ -2,38 +2,74 @@ using System.Security.Claims;
 using System.Text.Json;
 using GLMS.Shared.DTOs;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace GLMS.Web.Auth;
 
 public class GlmsAuthStateProvider : AuthenticationStateProvider
 {
+    private readonly ProtectedLocalStorage _storage;
+
     public string? Token { get; private set; }
 
     private static readonly AuthenticationState _anonymous =
         new(new ClaimsPrincipal(new ClaimsIdentity()));
 
     private AuthenticationState _current = _anonymous;
+    private bool _initialized;
 
-    public Task LoginAsync(LoginResponse response)
+    public GlmsAuthStateProvider(ProtectedLocalStorage storage)
+    {
+        _storage = storage;
+    }
+
+    public async Task LoginAsync(LoginResponse response)
     {
         Token = response.Token;
-        var claims = ParseClaimsFromJwt(response.Token);
-        var identity = new ClaimsIdentity(claims, "jwt");
-        _current = new AuthenticationState(new ClaimsPrincipal(identity));
+        await _storage.SetAsync("glms_token", response.Token);
+        _current = BuildState(response.Token);
+        _initialized = true;
         NotifyAuthenticationStateChanged(Task.FromResult(_current));
-        return Task.CompletedTask;
     }
 
-    public Task LogoutAsync()
+    public async Task LogoutAsync()
     {
         Token = null;
+        await _storage.DeleteAsync("glms_token");
         _current = _anonymous;
+        _initialized = true;
         NotifyAuthenticationStateChanged(Task.FromResult(_current));
-        return Task.CompletedTask;
     }
 
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
-        => Task.FromResult(_current);
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    {
+        if (_initialized)
+            return _current;
+
+        try
+        {
+            var result = await _storage.GetAsync<string>("glms_token");
+            if (result.Success && !string.IsNullOrEmpty(result.Value))
+            {
+                Token = result.Value;
+                _current = BuildState(result.Value);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // do nothing - called during SSR before the circuit is ready... stay anonymous.
+        }
+
+        _initialized = true;
+        return _current;
+    }
+
+    private AuthenticationState BuildState(string jwt)
+    {
+        var claims = ParseClaimsFromJwt(jwt);
+        var identity = new ClaimsIdentity(claims, "jwt");
+        return new AuthenticationState(new ClaimsPrincipal(identity));
+    }
 
     private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
