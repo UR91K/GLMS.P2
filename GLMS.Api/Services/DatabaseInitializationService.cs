@@ -19,10 +19,7 @@ public class DatabaseInitializationService
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-        if (db.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
-            await db.Database.EnsureCreatedAsync(cancellationToken);
-        else
-            await db.Database.MigrateAsync(cancellationToken);
+        await db.Database.EnsureCreatedAsync(cancellationToken);
 
         if (await db.Clients.AnyAsync(cancellationToken))
             return;
