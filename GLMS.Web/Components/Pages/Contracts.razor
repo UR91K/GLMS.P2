@@ -429,6 +429,11 @@
             uploadFailed = true;
             uploadMessage = "The selected file could not be read. Ensure it is a valid PDF under 10 MB.";
         }
+        catch (HttpRequestException ex)
+        {
+            uploadFailed = true;
+            uploadMessage = $"Upload failed: {ex.Message}";
+        }
         finally
         {
             isUploadingAgreement = false;
