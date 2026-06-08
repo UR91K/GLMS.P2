@@ -4,6 +4,18 @@ using GLMS.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+//references:
+// https://medium.com/@jeslurrahman/understanding-cancellation-tokens-in-asp-net-core-a-guide-to-efficient-api-design-39edcd3212a9
+// https://refactoring.guru/design-patterns/command
+// https://learn.microsoft.com/en-us/aspnet/core/web-api/?view=aspnetcore-10.0
+// https://learn.microsoft.com/en-us/aspnet/core/security/authorization/simple?view=aspnetcore-10.0
+// https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0
+// https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.controllerbase.physicalfile?view=aspnetcore-10.0
+// https://www.rfc-editor.org/info/rfc9110/#section-15
+// https://www.rfc-editor.org/info/rfc5789/
+// https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-10.0
+// https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/infrastructure-persistence-layer-design
+
 namespace GLMS.Api.Controllers;
 
 [ApiController]
