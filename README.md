@@ -72,3 +72,5 @@ DTOs are used to shape data passed between service layer and UI
 
 examples: `ContractListItemDto`, `ContractTransitionResultDto`, `ContractAgreementUploadResultDto`, `CurrencyRateDto`
 
+## AI Disclaimer
+GitHub Copilot Autocomplete provided in-text suggestions during development.

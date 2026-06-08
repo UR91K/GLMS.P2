@@ -1,0 +1,26 @@
+testlio2024:
+  type: Web
+  title: Automation for CI/CD
+  author: Testlio
+  date: 2024-08-02
+  url: 
+    value: https://www.testlio.com/blog/ci-cd-test-automation
+    date: 2026-06-09
+
+functionize2018:
+  type: Web
+  title: Why Test Automation is Essential for CI/CD
+  author: Verma, Ankur
+  date: 2018-08-06
+  url: 
+    value: https://www.functionize.com/blog/why-test-automation-is-essential-for-ci-cd
+    date: 2026-06-09
+
+docker2026:
+  type: Web
+  title: "What is Docker?"
+  author: Docker Inc.
+  date: 2026-02-11
+  url: 
+    value: https://docs.docker.com/get-started/docker-overview/
+    date: 2026-06-09
